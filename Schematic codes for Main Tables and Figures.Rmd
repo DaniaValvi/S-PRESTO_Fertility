@@ -1,6 +1,6 @@
 ---
 title: "R codes for Fertility manuscript"
-author: "Meizhen"
+author: "Meizhen Yao"
 date: "`r Sys.Date()`"
 output:
   html_document:
@@ -18,39 +18,22 @@ output:
     self_contained: yes
     code_folding: hide
     toc_depth: 6
-  pdf_document:
-    toc: yes
-    toc_depth: '6'
 header-includes: \usepackage{multirow}
 ---
 
-  <script language="javascript"> 
-    function toggle(num) {
-      var ele = document.getElementById("toggleText" + num);
-      var text = document.getElementById("displayText" + num);
-      if(ele.style.display == "block") {
-        ele.style.display = "none";
-        text.innerHTML = "show";
-      }
-      else {
-        ele.style.display = "block";
-        text.innerHTML = "hide";
-      }
-   } 
-  </script>
-
-<style>
-pre {
-  white-space: pre !important;
-  overflow-x: scroll !important;  
-  overflow-y: scroll !important;
-  height: auto !important;
-  max-height: 80vh !important;
+<style type="text/css">
+body{
+  /*font-family: Helvetica;*/
+  font-size: 12pt;
 }
 </style>
+
+
 ```{r setup, include=FALSE}
 options(digits = 4)
 knitr::opts_chunk$set(echo = TRUE,tidy=TRUE,cache=F,warning = FALSE)
+# suppress warning messages for final rendering
+old.warn <- getOption("warn")
 options(qwraps2_markup = "markdown")
 
 ```
@@ -106,26 +89,17 @@ whole_cohort<-  read_excel("~/Projects/S-PRESTO/input/fertility/spresto_data_202
 whole_cohort$Analysis_Batch_recat<- factor(whole_cohort$Analysis_Batch_recat,
                                      levels = c("B6","B2","B3","B4","B5"))
 
-
-
-
 #### ethnicity categorization
 whole_cohort$ethnicity_specified_recat<- factor(whole_cohort$ethnicity_specified_recat,
                                            levels=c("Chinese","Malay","Indian"))
 
-
 #### highest education                            
-whole_cohort$pcv1_highest_education_completed_recat<- factor(whole_cohort$pcv1_highest_education_completed_recat,
-                                           levels=c("University","Primary/Secondary/Post_secondary"))
-
+whole_cohort$pcv1_highest_education_completed_recat<- factor(whole_cohort$pcv1_highest_education_completed_recat,                                         levels=c("University","Primary/Secondary/Post_secondary"))
 
 
 #### parity status
 whole_cohort$pcv1_parity_recat<- factor(whole_cohort$pcv1_parity_recat,
                                   levels=c("0",">= 1"))
-
-
-
 
 label(whole_cohort$Analysis_Batch_recat)<- "Analysis Batch"
 label(whole_cohort$ttp_pregnant_ref)<- "Pregnant"
