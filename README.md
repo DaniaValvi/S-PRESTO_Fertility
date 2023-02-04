@@ -1,1 +1,1 @@
-# S-PRESTO_Fertility
+# Please find the schematic codes for the paper "Exposure to Perfluoroalkyl Substances and Women’s Fertility Outcomes in a Singaporean Population-based Preconception Cohort". All the codes are written in R.
