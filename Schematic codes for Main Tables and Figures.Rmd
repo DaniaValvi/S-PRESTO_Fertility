@@ -1,5 +1,5 @@
 ---
-title: "R codes for Fertility manuscript"
+title: "Schematic codes for Main Tables and Figures"
 author: "Meizhen Yao"
 date: "`r Sys.Date()`"
 output:
@@ -201,7 +201,6 @@ blood$ipw_sb_nomiss<- (whole_cohort_keep1 %>% filter(participation==1 & is.na(tt
 summary(blood$ipw_sb_nomiss)
 ```
 
-
 ## TTP - observed cycles (time to event outcome)
 ### Individual PFAS 
 ```{r,warning=FALSE,message=FALSE}
@@ -400,7 +399,7 @@ spresto <- as.data.frame(spresto[,c("ttp_in_cycle1","status",'PFHxS_quar_num', '
 
 
 # List of PFAS
-PFAS_name <- c('PFHxS_quar_num', 'PFHpA_quar_num', 'PFOS_Total_quar_num', 'PFOA_Linear_quar_num', 'PFNA_quar_num', 'PFDA_quar_num', 'PFHpS_quar_num' )
+mix_name_1 <- c('PFHxS_quar_num', 'PFHpA_quar_num', 'PFOS_Total_quar_num', 'PFOA_Linear_quar_num', 'PFNA_quar_num', 'PFDA_quar_num', 'PFHpS_quar_num' )
 
 # List of covariates
 KV_name <- c("Analysis_Batch_recat_B2","Analysis_Batch_recat_B3", "Analysis_Batch_recat_B4","Analysis_Batch_recat_B5","age_at_recruitment",
@@ -416,16 +415,14 @@ data_reg <- list(
   times_uncensored =  spresto$ttp_in_cycle1[spresto$status == 1],
   
   C1 = length(PFAS_name),
-  X_censored_C1 = as.matrix(spresto[spresto$status == 0, PFAS_name]),
-  X_uncensored_C1 = as.matrix(spresto[spresto$status == 1,PFAS_name]),
+  X_censored_C1 = as.matrix(spresto[spresto$status == 0, mix_name_1]),
+  X_uncensored_C1 = as.matrix(spresto[spresto$status == 1, mix_name_1]),
   
   NC = length(KV_name),                                                                            
   X_censored_NC = as.matrix(spresto[spresto$status == 0, KV_name]),
-  
   X_uncensored_NC = as.matrix(spresto[spresto$status == 1, KV_name]),   
   
   sw_censored = spresto$ipw_sb_nomiss[spresto$status == 0],
-  
   sw_uncensored = spresto$ipw_sb_nomiss[spresto$status == 1],
   
   DalpC1 = rep(1, 7)
@@ -546,9 +543,11 @@ PFAS_preg_adjusted_bm_matched_robust_reg2_p<-rbind(PFAS_preg_adjusted_bm_1_match
 
 PFAS_name<- c("PFHxS","PFHpA","PFOS_Total","PFOA_Linear","PFNA","PFDA","PFHpS")
 
+
+
+## put all infomation in the table
 PFAS_preg_adjusted_bm_matched_robust_reg2<- data.frame(PFAS_name,
            round(PFAS_preg_adjusted_bm_matched_robust_reg2_estimate,3),
-           # round(PFAS_preg_adjusted_bm_matched_robust_reg2_sd,2),
            round(PFAS_preg_adjusted_bm_matched_robust_reg2_ci_low,3),
            round(PFAS_preg_adjusted_bm_matched_robust_reg2_ci_high,3),
            round(PFAS_preg_adjusted_bm_matched_robust_reg2_p,4))%>% 
@@ -776,9 +775,9 @@ PFAS_lb_adjusted_bm_matched_robust_reg2_p<-rbind(PFAS_lb_adjusted_bm_1_matched_r
 
 PFAS_name<- c("PFHxS","PFHpA","PFOS_Total","PFOA_Linear","PFNA","PFDA","PFHpS")
 
+## put all infomation in the table
 PFAS_lb_adjusted_bm_matched_robust_reg2<- data.frame(PFAS_name,
            round(PFAS_lb_adjusted_bm_matched_robust_reg2_estimate,3),
-           # round(PFAS_lb_adjusted_bm_matched_robust_reg2_sd,3),
            round(PFAS_lb_adjusted_bm_matched_robust_reg2_ci_low,3),
            round(PFAS_lb_adjusted_bm_matched_robust_reg2_ci_high,3),
            round(PFAS_lb_adjusted_bm_matched_robust_reg2_p,4))%>% 
@@ -917,6 +916,29 @@ PFAS_weights
 
 ```
  
+
+# Figure 1
+```{r, message=FALSE,warning=FALSE}
+
+### Create a figure showing the weights from the BWQS models ###
+y <- c(0.1791, 0.1608, 0.1321, 0.1725, 0.1248, 0.1154, 0.1153, NA, NA, NA, NA, 0.2439, 0.1533, 0.1552, 0.1269, 0.1032, 0.1032, 0.1142, NA, NA, NA, NA, 0.2077, 0.1607, 0.1516, 0.1372, 0.1112, 0.1099, 0.1218)
+cols <- c("brown", "green", "purple", "blue", "red", "orange", "gray", NA, NA, NA, NA, "brown", "green", "purple", "blue", "red", "orange", "gray", NA, NA, NA, NA, "brown", "green", "purple", "blue", "red", "orange", "gray")
+
+### Generate the plot ###
+par(mar=c(5, 5, 4, 2) + 0.1)
+barplot(y, col=cols, xlim=c(0,33), ylim=c(0,0.5), axes=FALSE, xlab="", ylab="")
+axis(2, at=c(0, 0.25, 0.5, 0.75, 1), font=2, cex.axis=1.25, las=1, lwd=3, lwd.ticks=3)
+axis(1, at=c(4, 17.4, 30.9), labels=c("TTP", "Pregnant", "Live Birth"), font=2, cex.axis=1.25, las=1, lwd=3, lwd.ticks=3, tick=FALSE, line=-0.5)
+mtext("Weight", 2, line=3.45, cex=1.5, font=2)
+legend("topleft", x.intersp=0.5, text.font=2, legend=c("PFDA", "PFOS", "PFOA", "PFHpA", "PFHxS", "PFNA", "PFHpS"), fill=c("brown", "green", "purple", "blue", "red", "orange", "gray"))
+
+dev.off()
+
+
+
+
+```
+
 
 
 
