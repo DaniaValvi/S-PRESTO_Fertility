@@ -1,30 +1,2104 @@
 ---
 title: "Schematic codes for Supplementary Tables and Figures"
 author: "Meizhen Yao"
-date: "2023-02-04"
-output: html_document
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    theme: united
+    highlight: tango
+    df_print: paged
+    fig_caption: yes
+    fig_height: 7
+    fig_width: 10
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: yes
+      smooth_scroll: yes
+    self_contained: yes
+    code_folding: hide
+    toc_depth: 6
+header-includes: \usepackage{multirow}
 ---
 
+<style type="text/css">
+body{
+  /*font-family: Helvetica;*/
+  font-size: 12pt;
+}
+</style>
+
+
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+options(digits = 4)
+knitr::opts_chunk$set(echo = TRUE,tidy=TRUE,cache=F,warning = FALSE)
+# suppress warning messages for final rendering
+old.warn <- getOption("warn")
+options(warn=-1)
+
 ```
 
-## R Markdown
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+```{r,message=FALSE,warning=FALSE,include=FALSE}
+library(clubSandwich)
+library(parameters)
+library(sjstats)
+library(rms)
+library(survminer)
+library(survival)
+library(broom)
+library("data.table")   
+library(gtsummary)
+library(gt)
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+library(gridExtra)
+library(readxl)
+library(sandwich)
+library(boot)
+library(table1)
+library(flextable)
+library(plyr)
+library(Rcpp)
+library(modelr)
+library(readr)
+library(gWQS)
+library(broom.mixed)
+library(yaml)
+library(rmarkdown)
+library(officer)
+library(scales)
+library(spatstat)
+library(survey)
+library(devtools)
+library(cobalt)
+# install_version("optmatch", version = "0.9.17", repos = "http://cran.us.r-project.org")
+# install_github("markmfredrickson/RItools")
+library(RItools)
+library(optmatch)
+library(mice)
+library(pwr)
+library(writexl)
+library(qgcomp)
+library(samplesizelogisticcasecontrol)
+library(stringr)
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+#-------------------------------------------------------import data set
+whole_cohort<-  read_excel("~/Projects/S-PRESTO/input/fertility/spresto_data_20230104.xlsx", sheet="Data")
+health_condition<-  read_excel("~/Projects/S-PRESTO/input/Singapore/20230112-healthcondition/FormA43_General health_20230112[57].xlsx", sheet="Data")
 
-```{r cars}
-summary(cars)
+whole_cohort<- whole_cohort %>% 
+               inner_join(health_condition, by="Subject_ID")
+
+
+
+#-------------------------------------------------------change variable format
+### whether in the analysis sample:participate in blood measurement and have record for pregnant ###
+whole_cohort$include<- ifelse(whole_cohort$participation == 1 & is.na(whole_cohort$ttp_pregnant_ref) == FALSE, 1, 0)
+
+### OUTCOME ###
+#### pregnant
+whole_cohort$ttp_pregnant_ref<- factor(whole_cohort$ttp_pregnant_ref,
+                                  levels=c(0,1),
+                                  labels = c("Not pregnant", "Pregnant"))
+
+#### Live birth
+whole_cohort$live_birth_recat<- factor(whole_cohort$live_birth_recat,
+                                  levels=c(0,1),
+                                  labels = c("Have no live birth", "Have a live birth"))
+
+### demographic factors ### 
+#### Analysis Batch
+whole_cohort$Analysis_Batch_recat<- factor(whole_cohort$Analysis_Batch_recat,
+                                     levels = c("B6","B2","B3","B4","B5"))
+
+
+
+
+#### ethnicity categorization
+whole_cohort$ethnicity_specified_recat<- factor(whole_cohort$ethnicity_specified_recat,
+                                           levels=c("Chinese","Malay","Indian"))
+
+
+#### highest education                            
+whole_cohort$pcv1_highest_education_completed_recat<- factor(whole_cohort$pcv1_highest_education_completed_recat,
+                                           levels=c("University","Primary/Secondary/Post_secondary"))
+
+
+#### parity status
+whole_cohort$pcv1_parity_recat<- factor(whole_cohort$pcv1_parity_recat,
+                                  levels=c("0",">= 1"))
+
+#### smoking status
+whole_cohort$pcv1_smoker<- factor(whole_cohort$pcv1_smoker,
+                                  levels = c(0:2),
+                                  labels = c("Never smoke", "Smoker", "Ex-smoker")) 
+
+#### irregular menstrul cycle indicator
+whole_cohort$irregular_cycle<- ifelse(is.na(whole_cohort$ttp_remark_pcv1_menstrual_cycle_)==TRUE, "Regular cycle", "Irregular cycle")
+
+
+label(whole_cohort$Analysis_Batch_recat)<- "Analysis Batch"
+label(whole_cohort$ttp_pregnant_ref)<- "Pregnant"
+label(whole_cohort$live_birth_recat)<- "Live birth"
+label(whole_cohort$ttp_in_cycle1)<- "Time to pregnant (in menstrual cycle)"
+label(whole_cohort$age_at_recruitment)<- "Age at Recruitment (year)"
+label(whole_cohort$ethnicity_specified_recat)<- "Ethnicity"
+label(whole_cohort$pcv1_highest_education_completed_recat)<- "Highest Education Completed at preconception one visit"
+label(whole_cohort$pcv1_parity_recat)<- "Parity"
+label(whole_cohort$pcv1_bmi)<- "BMI"
+label(whole_cohort$pcv1_smoker)<- "Smoking status"
+label(whole_cohort$PFHxS)<- "PFHxS(ng/ml)"
+label(whole_cohort$PFHpA_bi_num)<- "PFHpA (LOD)"
+label(whole_cohort$PFDA_bi_num)<- "PFDA (LOD)"
+label(whole_cohort$PFHpS_bi_num)<- "PFHpS (LOD)"
+label(whole_cohort$PFOS_Total)<- "PFOS_Total(ng/ml)"
+label(whole_cohort$PFOA_Linear)<- "PFOA_Linear(ng/ml)"
+label(whole_cohort$PFNA)<- "PFNA(ng/ml)"
+label(whole_cohort$PFHxS)<- "PFHxS(ng/ml)"
+label(whole_cohort$PFHpA)<- "PFHpA(ng/ml)"
+label(whole_cohort$PFDA)<- "PFDA(ng/ml)"
+label(whole_cohort$PFHpS)<- "PFHpS(ng/ml)"
+label(whole_cohort$PFHxS_quar_num)<- "Quartile PFHxS"
+label(whole_cohort$PFHpA_quar_num)<- "Quartile PFHpA"
+label(whole_cohort$PFDA_quar_num)<- "Quartile PFDA"
+label(whole_cohort$PFHpS_quar_num)<- "Quartile PFHpS"
+label(whole_cohort$PFOS_Total_quar_num)<- "Quartile PFOS_Total"
+label(whole_cohort$PFOA_Linear_quar_num)<- "Quartile PFOA_Linear"
+label(whole_cohort$PFNA_quar_num)<- "Quartile PFNA"
+
+
+#-------------------------------------------------------2. only include blood sample
+blood<- whole_cohort %>% 
+        filter(include==1) %>% 
+        mutate(Fast_food=Meatpatties+Nuggets+Opizza+Potatofried,
+               fruit=Citrusfruits+ApplesPears+Grapesberries+Stonefruits+Tropicalfruits,
+               fruit_sc = (fruit - mean(fruit))/sd(fruit),
+               Fast_food_sc = (Fast_food - mean(Fast_food))/sd(Fast_food)) 
+
+
 ```
 
-## Including Plots
+```{r,warning=FALSE,message=FALSE}
+### calculate ipw for sampling bias ###
 
-You can also embed plots, for example:
+#  remove missing values for sampling bias model
+keeplist1=c("participation",'age_at_recruitment', 'pcv1_highest_education_completed_recat','ethnicity_specified_recat','pcv1_parity_recat')
+whole_cohort_keep<- whole_cohort[,keeplist1]
+whole_cohort_keep1<- whole_cohort[complete.cases(whole_cohort_keep),c(keeplist1, "ttp_pregnant_ref")]
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+# a. estimation of probability that the individual had blood measurement
+ipw_part_sb_nomiss1 <- glm(participation ~ age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat, 
+           family = binomial, data = whole_cohort_keep1)
+pd_sb_nomiss<-  predict(ipw_part_sb_nomiss1, type = "response")
+
+# b. estimation of numerator of ip weights
+ipw_part_sb_nomiss2 <- glm(participation ~ 1,
+           family = binomial, data = whole_cohort_keep1)
+pn_sb_nomiss<-  predict(ipw_part_sb_nomiss2, type = "response")
+
+# c. stabilized inverse of probability
+whole_cohort_keep1$ipw_sb_nomiss <- ifelse(whole_cohort_keep1$participation == 0, ((1-pn_sb_nomiss)/(1-pd_sb_nomiss)),
+                    (pn_sb_nomiss/pd_sb_nomiss))
+
+
+blood$ipw_sb_nomiss<- (whole_cohort_keep1 %>% filter(participation==1 & is.na(ttp_pregnant_ref)==FALSE))$ipw_sb_nomiss
+summary(blood$ipw_sb_nomiss)
+
+## sample for TTP analysis
+blood_ttpnomiss<- blood %>% 
+                  filter(is.na(ttp_in_cycle1)==FALSE & is.na(status)==FALSE)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+# Figure S1
+```{r,warning=FALSE,message=FALSE}
+# specify metal mixture
+mixture_PFAS=names(blood[,c("PFHxS","PFHpA","PFOS_Total","PFOA_Linear","PFNA","PFDA","PFHpS")])
+PFAS=c("PFHxS","PFHpA","PFOS","PFOA","PFNA","PFDA","PFHpS")
+# mixture_PFAS
+
+library(ggcorrplot)
+forcorr = cor(data.frame(blood[,mixture_PFAS]), method = "spearman")
+colnames(forcorr)<- PFAS[1:7]
+rownames(forcorr)<- PFAS[1:7]
+
+
+library(corrplot)
+corrplot(forcorr, 
+         method="color" ,
+         col = colorRampPalette(c("steelblue", "white", "darkred"))(100),cl.lim=c(0,1),
+         type="upper",
+         order="hclust" ,
+         tl.pos = 'tp',
+         tl.srt=30,
+         tl.col = "black",
+         ) 
+corrplot(forcorr, 
+         method="number", 
+         type="lower", 
+         order="hclust" ,
+         col = 'black', 
+         tl.pos = 'n',
+         cl.pos = 'n',
+         add=TRUE
+         ) 
+
+
+
+dev.off()
+
+```
+
+
+
+# Figure S2
+```{r, message=FALSE,warning=FALSE}
+# 1. Fit a BWQS survival model
+
+#################################
+#BWQS survival analysis with IPW#
+#################################
+
+bwqs_survival_code <- "data {
+    int<lower=1> N_uncensored;    //number of individual                               
+    int<lower=1> N_censored;                                        
+                       
+    vector<lower=0>[N_censored] times_censored;                          
+    vector<lower=0>[N_uncensored] times_uncensored;              
+    
+    int<lower=0> C1;                                // number of element of first mix
+    matrix[N_censored,C1] X_censored_C1;            // matrix of first mix censored
+    matrix[N_uncensored,C1] X_uncensored_C1;        // matrix of first mix uncensored
+
+
+    int<lower=0> NC;                               // covariates                                             
+    matrix[N_censored,NC] X_censored_NC;                               
+    matrix[N_uncensored,NC] X_uncensored_NC;       
+
+    vector[C1] DalpC1;                            // vector of the Dirichlet coefficients for first mix
+    
+    vector[N_uncensored] sw_uncensored;            // IPW type of weights for uncensored
+
+    vector[N_censored] sw_censored;            // IPW type of weights for censored
+
+}
+
+parameters {
+    real mu;                    // intercepts
+    real beta;                  // mixture effect
+    real <lower=0> sigma;
+    vector[NC] delta;           // covariates coefficients
+    simplex[C1] WC1;            // weights of first mix
+}
+
+transformed parameters {
+
+    vector[N_censored] Xb_censored;
+    vector[N_uncensored] Xb_uncensored;
+    Xb_censored = mu + (X_censored_C1*WC1)*beta  + X_censored_NC*delta;
+    Xb_uncensored = mu + (X_uncensored_C1*WC1)*beta  + X_uncensored_NC*delta;
+
+}
+model {
+
+    mu ~ normal(0, 10);
+    sigma ~ inv_gamma(0.01,0.01);
+    beta ~ normal(0, sigma);
+    for(j in 1:NC) delta[j] ~ normal(0,10);
+    WC1 ~ dirichlet(DalpC1);
+    for(n1 in 1:N_uncensored){
+        target += exponential_lpdf(times_uncensored[n1] | exp(Xb_uncensored[n1]))* sw_uncensored[n1]; 
+    }
+    for(n2 in 1:N_censored){
+        target += exponential_lccdf(times_censored[n2] | exp(Xb_censored[n2]))* sw_censored[n2]; 
+    }
+        }
+
+"
+
+
+
+bwqs_survival_sm <- rstan::stan_model(model_code =  bwqs_survival_code)
+
+# Read the data
+spresto<- blood_ttpnomiss %>% 
+  select(ttp_in_cycle1,status,PFHxS_quar_num,PFHpA_quar_num,PFOS_Total_quar_num,PFOA_Linear_quar_num,PFNA_quar_num,PFDA_quar_num,PFHpS_quar_num,Analysis_Batch_recat,age_at_recruitment, pcv1_highest_education_completed_recat,ethnicity_specified_recat,pcv1_parity_recat, ipw_sb_nomiss)
+
+
+sapply(spresto, function(x) sum(is.na(x))) 
+
+spresto <- na.omit(spresto)
+spresto <- DataExplorer::dummify(spresto)
+
+# subset the data
+spresto <- as.data.frame(spresto[,c("ttp_in_cycle1","status",'PFHxS_quar_num', 'PFHpA_quar_num', 'PFOS_Total_quar_num', 'PFOA_Linear_quar_num', 'PFNA_quar_num', 'PFDA_quar_num', 'PFHpS_quar_num',
+                                    "Analysis_Batch_recat_B2","Analysis_Batch_recat_B3", "Analysis_Batch_recat_B4","Analysis_Batch_recat_B5","age_at_recruitment",
+                                    "pcv1_highest_education_completed_recat_Primary.Secondary.Post_secondary",
+                                    "ethnicity_specified_recat_Chinese", "ethnicity_specified_recat_Indian","pcv1_parity_recat_...1","ipw_sb_nomiss")])
+
+
+# List of PFAS
+PFAS_name <- c('PFHxS_quar_num', 'PFHpA_quar_num', 'PFOS_Total_quar_num', 'PFOA_Linear_quar_num', 'PFNA_quar_num', 'PFDA_quar_num', 'PFHpS_quar_num' )
+
+# List of covariates
+KV_name <- c("Analysis_Batch_recat_B2","Analysis_Batch_recat_B3", "Analysis_Batch_recat_B4","Analysis_Batch_recat_B5","age_at_recruitment",
+             "pcv1_highest_education_completed_recat_Primary.Secondary.Post_secondary",
+             "ethnicity_specified_recat_Chinese", "ethnicity_specified_recat_Indian","pcv1_parity_recat_...1")
+
+
+data_reg <- list(
+  N_uncensored = as.numeric(table(spresto$status))[2],
+  N_censored = as.numeric(table(spresto$status))[1],
+  
+  times_censored =  spresto$ttp_in_cycle1[spresto$status == 0],
+  times_uncensored =  spresto$ttp_in_cycle1[spresto$status == 1],
+  
+  C1 = length(PFAS_name),
+  X_censored_C1 = as.matrix(spresto[spresto$status == 0, PFAS_name]),
+  X_uncensored_C1 = as.matrix(spresto[spresto$status == 1,PFAS_name]),
+  
+  NC = length(KV_name),                                                                            
+  X_censored_NC = as.matrix(spresto[spresto$status == 0, KV_name]),
+  
+  X_uncensored_NC = as.matrix(spresto[spresto$status == 1, KV_name]),   
+  
+  sw_censored = spresto$ipw_sb_nomiss[spresto$status == 0],
+  
+  sw_uncensored = spresto$ipw_sb_nomiss[spresto$status == 1],
+  
+  DalpC1 = rep(1, 7)
+)
+
+fit_bwqs_survival_sm <- rstan::sampling(bwqs_survival_sm,
+                                        data = data_reg,
+                                        chains = 2,
+                                        iter = 1e4,
+                                        thin = 1,
+                                        refresh = 0, verbose = F,
+                                        control=list(max_treedepth = 20,
+                                                     adapt_delta = 0.999999999999999))
+
+
+sum_fit_bwqs_survival_sm <- round(summary(fit_bwqs_survival_sm,
+                                          probs = c(0.025, 0.975))$summary,4)
+
+# 2. extract PFAS mixture variable
+as.vector(sum_fit_bwqs_survival_sm[13:19,'mean'])
+as.matrix(PFAS)
+blood_ttpnomiss$PFAS_Mixture<- as.vector(as.matrix(PFAS) %*% as.vector(sum_fit_bwqs_survival_sm[13:19,'mean']))
+
+# 3. Kaplan-meier curve for TTP stratified by PFAS mixture level
+fit <- survfit(Surv(ttp_in_cycle1,status) ~ PFAS_Mixture_quar, data = blood_ttpnomiss)
+
+KM_table_plot1<- ggsurvplot(
+          fit,
+          risk.table = TRUE, # Add risk table
+          surv.median.line = "hv",  # add the median survival pointer
+          xlab = "Time-to-pregnancy (Menstrual cycles)",   # customize X axis label.
+          ylab = "Non-pregnancy probability",  
+          break.time.by = 5,
+          ggtheme = theme_bw(),
+          tables.col = "black",
+          legend.title = "",
+          legend.labs = c('PFAS mixture level = 1', 'PFAS mixture level = 2', 'PFAS mixture level = 3', 'PFAS mixture level = 4'),
+          tables.y.text = FALSE,
+          tables.height = 0.20,
+          tables.y.text.col = TRUE,
+          fontsize = 4)
+
+
+KM_table_plot1
+dev.off()
+
+```
+
+
+# Table S1
+```{r, message=FALSE,warning=FALSE}
+
+## original chemicals
+Name_of_PFAS<- c("PFBS(ng/ml)","PFHxS(ng/ml)","PFHpA(ng/ml)","PFOS-Linear(ng/ml)","PFOS-Branched(ng/ml)","PFOA-Linear(ng/ml)","PFNA(ng/ml)","PFDA(ng/ml)","PFHpS(ng/ml)","NMeFOSAA(ng/ml)","NEtFOSAA(ng/ml)","6:2 FTS(ng/ml)","6:2 PAP(ng/ml)","6:2 diPAP(ng/ml)","PFOSA(ng/ml)","PFDS(ng/ml)")
+
+PFAS<- c("PFBS","PFHxS","PFHpA","PFOS_Linear","PFOS_Branched","PFOA_Linear","PFNA","PFDA","PFHpS","NMeFOSAA","NEtFOSAA","FTS","PAP","diPAP","PFOSA","PFDS")
+
+LOD_value<- c(0.2, 0.1, 0.2, 0.2,  0.2, 0.5, 0.5, 0.5, 0.2, 0.1, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1)
+
+PFAS_comment<- c("PFBS_Comment","PFHxS_Comment","PFHpA_Comment","PFOS_Linear_Comment","PFOS_Branched_Comment","PFOA_Linear_Comment","PFNA_Comment","PFDA_Comment","PFHpS_Comment","NMeFOSAA_Comment","NEtFOSAA_Comment","_6_2_FTS_Comment", "_6_2_PAP_Comment","_6_2_diPAP_Comment","PFOSA_Comment","PFDS_Comment")
+
+
+statistics<- c('LOD (ng/ml)',	'% < LOD',	'Min',	'P5',  'Q1', 'Median', 'Q31', 'P95', 'Max')
+
+
+
+PFAS_info<- data.frame(matrix(ncol = 8, nrow = 16))
+for (i in 1:16){
+  PFAS_chemical_data<- blood[ ,PFAS]
+  PFAS_comment_data<- blood[ ,PFAS_comment]
+  
+  PFAS_info[i, ]<- data.frame((PFAS_comment_data %>% 
+                             filter(PFAS_comment_data[[i]]==37) %>% 
+                                    dplyr::summarise(percent=percent(n()/nrow(PFAS_comment_data %>% na.omit()),accuracy=0.1)))$percent, # %>LOD
+                             format(round(min(PFAS_chemical_data[[i]], na.rm=TRUE),2),nsmall = 2), #MIN
+                             format(round(quantile(PFAS_chemical_data[[i]],c(.05),na.rm=TRUE,type=2),2),nsmall = 2), #P5
+                             format(round(quantile(PFAS_chemical_data[[i]],c(.25),na.rm=TRUE,type=2),2),nsmall = 2), #P25
+                             format(round(quantile(PFAS_chemical_data[[i]],c(.50),na.rm=TRUE,type=2),2),nsmall = 2), # MEDIAN
+                             format(round(quantile(PFAS_chemical_data[[i]],c(.75),na.rm=TRUE,type=2),2),nsmall = 2), #P75
+                             format(round(quantile(PFAS_chemical_data[[i]],c(.95),na.rm=TRUE,type=2),2),nsmall = 2), #P95
+                             format(round(max(PFAS_chemical_data[[i]], na.rm=TRUE),2),nsmall = 2)) # MAX
+}
+
+PFAS_original<- cbind(PFAS=Name_of_PFAS,
+                       data.frame(LOD_value,
+                                  PFAS_info))
+### PFOS_Total
+PFOS_TOTAL<- data.frame(PFAS="PFOS Total(ng/ml)",
+                        LOD_value=0.2, 
+                        X1="0.0%", 
+                        X2=format(round(min(blood$PFOS_Total, na.rm=TRUE),2),nsmall = 2), #MIN
+                        X3=format(round(quantile(blood$PFOS_Total,c(.05),na.rm=TRUE,type=2),2),nsmall = 2), #P5
+                        X4=format(round(quantile(blood$PFOS_Total,c(.25),na.rm=TRUE,type=2),2),nsmall = 2), #P25
+                        X5=format(round(quantile(blood$PFOS_Total,c(.50),na.rm=TRUE,type=2),2),nsmall = 2), # MEDIAN
+                        X6=format(round(quantile(blood$PFOS_Total,c(.75),na.rm=TRUE,type=2),2),nsmall = 2), #P75
+                        X7=format(round(quantile(blood$PFOS_Total,c(.95),na.rm=TRUE,type=2),2),nsmall = 2), #P95
+                        X8=format(round(max(blood$PFOS_Total, na.rm=TRUE),2),nsmall = 2))
+
+PFAS_info_name<- rbind(PFAS_original,
+                       PFOS_TOTAL)
+
+## format table
+PFAS_info_name_table<- flextable(PFAS_info_name) %>% 
+  add_header_row(value=c("PFAS (ng/mL) N=382"),colwidths=c(10)) %>% 
+  set_header_labels(PFAS="PFAS",LOD_value='LOD (ng/ml)',	X1='% < LOD',	X2='Min',	X3='P5',  X4='Q1', X5='Median', X6='Q31', X7='P95', X8='Max') %>% 
+  theme_box() %>% 
+  align(align="center",part="header") 
+
+PFAS_info_name_table
+```
+
+# Table S2
+```{r,message=FALSE,warning=FALSE}
+demo_table <- blood %>%
+    select(live_birth_recat, age_at_recruitment,pcv1_bmi, pcv1_highest_education_completed_recat,ethnicity_specified_recat, pcv1_parity_recat, pcv1_smoker, PFHxS, PFHpA,
+           PFOS_Total, PFOA_Linear, PFNA, PFDA, PFHpS, ttp_in_cycle1) %>%
+    tbl_summary(type = list(c("PFHxS", "PFHpA", "PFOS_Total", "PFOA_Linear", "PFNA","PFDA", "PFHpS", "ttp_in_cycle1") ~ "continuous"), 
+                by = live_birth_recat,
+                missing_text = "Missing", 
+                digits = everything() ~ 2
+                ) %>%
+    bold_labels() %>%
+    add_p(test = list(all_categorical() ~ "chisq.test",
+          pcv1_smoker ~ "fisher.test"),
+          pvalue_fun = function(x) style_pvalue(x, digits = 3)) %>%
+    bold_p() %>%
+    add_overall()
+
+demo_table
+
+```
+
+# Table S3
+```{r,warning=FALSE,message=FALSE}
+
+# data used for pregnant & live birth
+demo_table<- whole_cohort %>%
+              select(include, age_at_recruitment ,pcv1_highest_education_completed_recat, ethnicity_specified_recat, pcv1_parity_recat, pcv1_smoker) %>% 
+              tbl_summary(
+                by = include,
+                missing_text = "Missing",
+                digits = everything() ~ 2
+              ) %>% 
+              bold_labels() %>% 
+              add_p(all_categorical() ~ "chisq.test",
+                    pvalue_fun = function(x) style_pvalue(x, digits = 3)) %>% 
+              bold_p() %>% 
+              add_overall()
+
+demo_table
+
+```
+
+
+# Table S4
+```{r,message=FALSE,warning=FALSE}
+
+demo_preg_table <- whole_cohort %>%
+    filter(ttp_pregnant_ref=="Pregnant") %>% 
+    select(include, age_at_recruitment, pcv1_highest_education_completed_recat,ethnicity_specified_recat, pcv1_parity_recat, pcv1_smoker) %>%
+    tbl_summary(by = include,
+                missing_text = "Missing", 
+                digits = everything() ~ 2
+                ) %>%
+    bold_labels() %>%
+    add_p(test = list(all_categorical() ~ "chisq.test",
+          pcv1_smoker ~ "fisher.test"),
+          pvalue_fun = function(x) style_pvalue(x, digits = 3)) %>%
+    bold_p() 
+
+demo_nopreg_table <- whole_cohort %>%
+    filter(ttp_pregnant_ref=="Not pregnant") %>% 
+    select(include, age_at_recruitment, pcv1_highest_education_completed_recat,ethnicity_specified_recat, pcv1_parity_recat, pcv1_smoker) %>%
+    tbl_summary(by = include,
+                missing_text = "Missing", 
+                digits = everything() ~ 2
+                ) %>%
+    bold_labels() %>%
+    add_p(test = list(all_categorical() ~ "chisq.test",
+          pcv1_smoker ~ "fisher.test"),
+          pvalue_fun = function(x) style_pvalue(x, digits = 3)) %>%
+    bold_p() 
+
+demo_mergepreg_table<- tbl_merge(
+  tbls = list(demo_preg_table, demo_nopreg_table),
+  tab_spanner = c("Pregnant", "Not pregnant")
+)
+
+demo_mergepreg_table
+
+```
+
+# Table S5
+## TTP 
+```{r,warning=FALSE,message=FALSE}
+blood_ttpnomiss<- blood %>% 
+                  filter(is.na(ttp_in_cycle1)==FALSE & is.na(status)==FALSE)
+### model fit
+surv_model_adjusted2<- coxph(Surv(ttp_in_cycle1,status) ~ PFHpA_bi_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat,
+                         blood_ttpnomiss, weights= blood_ttpnomiss$ipw_sb_nomiss,robust=TRUE) 
+
+surv_model_adjusted6<- coxph(Surv(ttp_in_cycle1,status) ~ PFDA_bi_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat,
+                         blood_ttpnomiss, weights= blood_ttpnomiss$ipw_sb_nomiss,robust=TRUE) 
+
+surv_model_adjusted7<- coxph(Surv(ttp_in_cycle1,status) ~ PFHpS_bi_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat,
+                         blood_ttpnomiss, weights= blood_ttpnomiss$ipw_sb_nomiss,robust=TRUE) 
+
+ 
+
+
+
+### summarize models into table
+surv_model_adjusted2_table<- surv_model_adjusted2 %>%
+                               tbl_regression(exponentiate = TRUE,
+                               include = PFHpA_bi_num,
+                               show_single_row=PFHpA_bi_num,
+                               pvalue_fun = function(x) style_pvalue(x, digits = 3),
+                               estimate_fun = function(x) style_sigfig(x, digits = 3)) 
+
+surv_model_adjusted6_table<- surv_model_adjusted6 %>%
+                               tbl_regression(exponentiate = TRUE,
+                               include = PFDA_bi_num,
+                               show_single_row=PFDA_bi_num,
+                               pvalue_fun = function(x) style_pvalue(x, digits = 3),
+                               estimate_fun = function(x) style_sigfig(x, digits = 3)) 
+
+surv_model_adjusted7_table<- surv_model_adjusted7 %>%
+                               tbl_regression(exponentiate = TRUE,
+                               include = PFHpS_bi_num,
+                               show_single_row=PFHpS_bi_num,
+                               pvalue_fun = function(x) style_pvalue(x, digits = 3),
+                               estimate_fun = function(x) style_sigfig(x, digits = 3)) 
+### combine tables
+surv_model_adjusted_table<- tbl_stack(tbls = list(surv_model_adjusted2_table,surv_model_adjusted6_table,surv_model_adjusted7_table))%>%
+                               modify_header(
+                                   update = list(
+                                   label ~ '**PFAS Variable**'))%>%
+                               bold_p() %>%
+                               bold_labels()%>% 
+                               as_gt()%>% 
+                                  tab_footnote(
+                                    footnote=c("Adjusted model: adjusted for Batch effect, age at recruitment, Highest education status, ethinicity, and parity at pcv1 visit"),
+                                    locations=  cells_stubhead()
+                         )
+
+surv_model_adjusted_table
+
+```
+
+
+
+## Pregnant
+```{r, message=FALSE,warning=FALSE}
+## fit the model
+PFAS_preg_adjusted_bm_2_matched_reg2<- glm(ttp_pregnant_ref ~PFHpA_bi_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat,data=blood, family='binomial',weights = blood$ipw_sb_nomiss)
+
+PFAS_preg_adjusted_bm_6_matched_reg2<- glm(ttp_pregnant_ref ~PFDA_bi_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat,data=blood, family='binomial',weights = blood$ipw_sb_nomiss)
+
+PFAS_preg_adjusted_bm_7_matched_reg2<- glm(ttp_pregnant_ref ~PFHpS_bi_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat,data=blood, family='binomial',weights = blood$ipw_sb_nomiss)
+
+## extract the information from the model
+
+PFAS_preg_adjusted_bm_2_matched_robust_reg2<- as_tibble(model_parameters(PFAS_preg_adjusted_bm_2_matched_reg2, ci_method="wald", vcov = "HC3",exponentiate = TRUE
+))
+
+
+PFAS_preg_adjusted_bm_6_matched_robust_reg2<- as_tibble(model_parameters(PFAS_preg_adjusted_bm_6_matched_reg2, ci_method="wald", vcov = "HC3",exponentiate = TRUE
+))
+
+PFAS_preg_adjusted_bm_7_matched_robust_reg2<- as_tibble(model_parameters(PFAS_preg_adjusted_bm_7_matched_reg2, ci_method="wald", vcov = "HC3",exponentiate = TRUE
+))
+
+
+
+
+
+
+
+PFAS_preg_adjusted_bm_matched_robust_reg2_estimate<- rbind(
+                                                    PFAS_preg_adjusted_bm_2_matched_robust_reg2[2,2],
+                                                    PFAS_preg_adjusted_bm_6_matched_robust_reg2[2,2],
+                                                    PFAS_preg_adjusted_bm_7_matched_robust_reg2[2,2])
+
+PFAS_preg_adjusted_bm_matched_robust_reg2_sd<-rbind(PFAS_preg_adjusted_bm_2_matched_robust_reg2[2,3],
+                                                    PFAS_preg_adjusted_bm_6_matched_robust_reg2[2,3],
+                                                    PFAS_preg_adjusted_bm_7_matched_robust_reg2[2,3])
+
+PFAS_preg_adjusted_bm_matched_robust_reg2_ci_low<-rbind(PFAS_preg_adjusted_bm_2_matched_robust_reg2[2,5],
+                                                    PFAS_preg_adjusted_bm_6_matched_robust_reg2[2,5],
+                                                    PFAS_preg_adjusted_bm_7_matched_robust_reg2[2,5])
+
+PFAS_preg_adjusted_bm_matched_robust_reg2_ci_high<-rbind(PFAS_preg_adjusted_bm_2_matched_robust_reg2[2,6],
+                                                    PFAS_preg_adjusted_bm_6_matched_robust_reg2[2,6],
+                                                    PFAS_preg_adjusted_bm_7_matched_robust_reg2[2,6])
+
+PFAS_preg_adjusted_bm_matched_robust_reg2_p<-rbind(PFAS_preg_adjusted_bm_2_matched_robust_reg2[2,9],
+                                                    PFAS_preg_adjusted_bm_6_matched_robust_reg2[2,9],
+                                                    PFAS_preg_adjusted_bm_7_matched_robust_reg2[2,9])
+
+PFAS_name<- c("PFHpA (Binary)","PFDA (Binary)","PFHpS (Binary)")
+
+PFAS_preg_adjusted_bm_matched_robust_reg2<- data.frame(PFAS_name,
+           round(PFAS_preg_adjusted_bm_matched_robust_reg2_estimate,3),
+           # round(PFAS_preg_adjusted_bm_matched_robust_reg2_sd,2),
+           round(PFAS_preg_adjusted_bm_matched_robust_reg2_ci_low,3),
+           round(PFAS_preg_adjusted_bm_matched_robust_reg2_ci_high,3),
+           round(PFAS_preg_adjusted_bm_matched_robust_reg2_p,4))%>% 
+unite(ci,CI_low,CI_high,sep=",")
+
+
+PFAS_preg_adjusted_bm_matched_robust_reg2_table1<- flextable(PFAS_preg_adjusted_bm_matched_robust_reg2)  %>% 
+                 set_header_labels(Coefficient="OR",ci="95% CI",p="p.value") %>% 
+                 add_footer_lines(values=c("p.value less than 0.05 is marked in red","Adjusted model: adjusted for Batch effect, age at recruitment, Highest education status, ethinicity, and parity at pcv1 visit"))%>% 
+                 color( ~p<0.05,~p,color="red") %>% 
+                 theme_box 
+
+
+PFAS_preg_adjusted_bm_matched_robust_reg2_table1
+
+
+```
+
+
+## Live birth
+```{r, message=FALSE,warning=FALSE}
+
+
+## fit the model
+PFAS_lb_adjusted_bm_2_matched_reg2<- glm(live_birth_recat ~PFHpA_bi_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat,data=blood, family='binomial',weights = blood$ipw_sb_nomiss)
+
+PFAS_lb_adjusted_bm_6_matched_reg2<- glm(live_birth_recat ~PFDA_bi_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat,data=blood, family='binomial',weights = blood$ipw_sb_nomiss)
+
+PFAS_lb_adjusted_bm_7_matched_reg2<- glm(live_birth_recat ~PFHpS_bi_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat,data=blood, family='binomial',weights = blood$ipw_sb_nomiss)
+
+## extract the information from the model
+PFAS_lb_adjusted_bm_2_matched_robust_reg2<- as_tibble(model_parameters(PFAS_lb_adjusted_bm_2_matched_reg2, ci_method="wald", vcov = "HC3",exponentiate = TRUE
+))
+
+PFAS_lb_adjusted_bm_6_matched_robust_reg2<- as_tibble(model_parameters(PFAS_lb_adjusted_bm_6_matched_reg2, ci_method="wald", vcov = "HC3",exponentiate = TRUE
+))
+
+PFAS_lb_adjusted_bm_7_matched_robust_reg2<- as_tibble(model_parameters(PFAS_lb_adjusted_bm_7_matched_reg2, ci_method="wald", vcov = "HC3",exponentiate = TRUE
+))
+
+
+
+
+PFAS_lb_adjusted_bm_matched_robust_reg2_estimate<- rbind(PFAS_lb_adjusted_bm_2_matched_robust_reg2[2,2],
+                                                     PFAS_lb_adjusted_bm_6_matched_robust_reg2[2,2],
+                                                    PFAS_lb_adjusted_bm_7_matched_robust_reg2[2,2])
+
+PFAS_lb_adjusted_bm_matched_robust_reg2_sd<-rbind(PFAS_lb_adjusted_bm_2_matched_robust_reg2[2,3],
+                                                    PFAS_lb_adjusted_bm_6_matched_robust_reg2[2,3],
+                                                    PFAS_lb_adjusted_bm_7_matched_robust_reg2[2,3])
+
+PFAS_lb_adjusted_bm_matched_robust_reg2_ci_low<-rbind(PFAS_lb_adjusted_bm_2_matched_robust_reg2[2,5],
+                                                    PFAS_lb_adjusted_bm_6_matched_robust_reg2[2,5],
+                                                    PFAS_lb_adjusted_bm_7_matched_robust_reg2[2,5])
+
+PFAS_lb_adjusted_bm_matched_robust_reg2_ci_high<-rbind(PFAS_lb_adjusted_bm_2_matched_robust_reg2[2,6],
+                                                    PFAS_lb_adjusted_bm_6_matched_robust_reg2[2,6],
+                                                    PFAS_lb_adjusted_bm_7_matched_robust_reg2[2,6])
+
+PFAS_lb_adjusted_bm_matched_robust_reg2_p<-rbind(PFAS_lb_adjusted_bm_2_matched_robust_reg2[2,9],
+                                                    PFAS_lb_adjusted_bm_6_matched_robust_reg2[2,9],
+                                                    PFAS_lb_adjusted_bm_7_matched_robust_reg2[2,9])
+
+PFAS_name<- c("PFHpA (Binary)","PFDA (Binary)","PFHpS (Binary)")
+
+PFAS_lb_adjusted_bm_matched_robust_reg2<- data.frame(PFAS_name,
+           round(PFAS_lb_adjusted_bm_matched_robust_reg2_estimate,3),
+           # round(PFAS_lb_adjusted_bm_matched_robust_reg2_sd,3),
+           round(PFAS_lb_adjusted_bm_matched_robust_reg2_ci_low,3),
+           round(PFAS_lb_adjusted_bm_matched_robust_reg2_ci_high,3),
+           round(PFAS_lb_adjusted_bm_matched_robust_reg2_p,4))%>% 
+unite(ci,CI_low,CI_high,sep=",")
+
+
+PFAS_lb_adjusted_bm_matched_robust_reg2_table<- flextable(PFAS_lb_adjusted_bm_matched_robust_reg2)%>% 
+                 set_header_labels(Coefficient="OR",ci="95% CI",p="p.value") %>% 
+                 add_footer_lines(values=c("p.value less than 0.05 is marked in red","Adjusted model: adjusted for Batch effect, age at recruitment, Highest education status, ethinicity, and parity at pcv1 visit"))%>% 
+                 color( ~p<0.05,~p,color="red") %>% 
+                 theme_box 
+
+
+PFAS_lb_adjusted_bm_matched_robust_reg2_table
+
+```
+
+# Table S6
+## AFT models (with Weibull distribution)
+```{r, warning=FALSE, message=FALSE}
+
+## adjusted 
+### model fit
+surv_model_AFT_adjusted1<- survreg(Surv(ttp_in_cycle1,status) ~ PFHxS_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat,
+                         blood_ttpnomiss, weights= blood_ttpnomiss$ipw_sb_nomiss,robust=TRUE,dist='weibull') 
+
+surv_model_AFT_adjusted2<- survreg(Surv(ttp_in_cycle1,status) ~ PFHpA_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat,
+                         blood_ttpnomiss, weights= blood_ttpnomiss$ipw_sb_nomiss,robust=TRUE,dist='weibull') 
+
+surv_model_AFT_adjusted3<- survreg(Surv(ttp_in_cycle1,status) ~ PFOS_Total_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat,
+                         blood_ttpnomiss, weights= blood_ttpnomiss$ipw_sb_nomiss,robust=TRUE,dist='weibull') 
+
+surv_model_AFT_adjusted4<- survreg(Surv(ttp_in_cycle1,status) ~ PFOA_Linear_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat,
+                         blood_ttpnomiss, weights= blood_ttpnomiss$ipw_sb_nomiss,robust=TRUE,dist='weibull') 
+
+surv_model_AFT_adjusted5<- survreg(Surv(ttp_in_cycle1,status) ~ PFNA_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat,
+                         blood_ttpnomiss, weights= blood_ttpnomiss$ipw_sb_nomiss,robust=TRUE,dist='weibull') 
+
+surv_model_AFT_adjusted6<- survreg(Surv(ttp_in_cycle1,status) ~ PFDA_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat,
+                         blood_ttpnomiss, weights= blood_ttpnomiss$ipw_sb_nomiss,robust=TRUE,dist='weibull') 
+
+surv_model_AFT_adjusted7<- survreg(Surv(ttp_in_cycle1,status) ~ PFHpS_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat,
+                         blood_ttpnomiss, weights= blood_ttpnomiss$ipw_sb_nomiss,robust=TRUE,dist='weibull') 
+
+ 
+
+### summarize models into table
+surv_model_AFT_adjusted1_table<- surv_model_AFT_adjusted1 %>%
+                               tbl_regression(
+                               include = PFHxS_quar_num,
+                               show_single_row=PFHxS_quar_num,
+                               pvalue_fun = function(x) style_pvalue(x, digits = 3),
+                               estimate_fun = function(x) style_sigfig(x, digits = 3)) 
+
+surv_model_AFT_adjusted2_table<- surv_model_AFT_adjusted2 %>%
+                               tbl_regression(
+                               include = PFHpA_quar_num,
+                               show_single_row=PFHpA_quar_num,
+                               pvalue_fun = function(x) style_pvalue(x, digits = 3),
+                               estimate_fun = function(x) style_sigfig(x, digits = 3)) 
+
+surv_model_AFT_adjusted3_table<- surv_model_AFT_adjusted3 %>%
+                               tbl_regression(
+                               include = PFOS_Total_quar_num,
+                               show_single_row=PFOS_Total_quar_num,
+                               pvalue_fun = function(x) style_pvalue(x, digits = 3),
+                               estimate_fun = function(x) style_sigfig(x, digits = 3)) 
+
+surv_model_AFT_adjusted4_table<- surv_model_AFT_adjusted4 %>%
+                               tbl_regression(
+                               include = PFOA_Linear_quar_num,
+                               show_single_row=PFOA_Linear_quar_num,
+                               pvalue_fun = function(x) style_pvalue(x, digits = 3),
+                               estimate_fun = function(x) style_sigfig(x, digits = 3)) 
+
+surv_model_AFT_adjusted5_table<- surv_model_AFT_adjusted5 %>%
+                               tbl_regression(
+                               include = PFNA_quar_num,
+                               show_single_row=PFNA_quar_num,
+                               pvalue_fun = function(x) style_pvalue(x, digits = 3),
+                               estimate_fun = function(x) style_sigfig(x, digits = 3)) 
+
+surv_model_AFT_adjusted6_table<- surv_model_AFT_adjusted6 %>%
+                               tbl_regression(
+                               include = PFDA_quar_num,
+                               show_single_row=PFDA_quar_num,
+                               pvalue_fun = function(x) style_pvalue(x, digits = 3),
+                               estimate_fun = function(x) style_sigfig(x, digits = 3)) 
+
+surv_model_AFT_adjusted7_table<- surv_model_AFT_adjusted7 %>%
+                               tbl_regression(
+                               include = PFHpS_quar_num,
+                               show_single_row=PFHpS_quar_num,
+                               pvalue_fun = function(x) style_pvalue(x, digits = 3),
+                               estimate_fun = function(x) style_sigfig(x, digits = 3)) 
+### combine tables
+surv_model_AFT_adjusted_table<- tbl_stack(tbls = list(surv_model_AFT_adjusted1_table,surv_model_AFT_adjusted2_table,surv_model_AFT_adjusted3_table,surv_model_AFT_adjusted4_table,surv_model_AFT_adjusted5_table,surv_model_AFT_adjusted6_table,surv_model_AFT_adjusted7_table))%>%
+                               modify_header(
+                                   update = list(
+                                   label ~ '**PFAS Variable**'))%>%
+                               bold_p() %>%
+                               bold_labels()%>% 
+                               as_gt()%>% 
+                                  tab_footnote(
+                                    footnote=c("Adjusted model: adjusted for Batch effect, age at recruitment, Highest education status, ethinicity, and parity at pcv1 visit"),
+                                    locations=  cells_stubhead()
+                         )
+
+
+### convert results
+surv_model_AFT_adjusted_table_results<- data.frame(surv_model_AFT_adjusted_table)
+surv_model_AFT_adjusted_table_results$conf.high<- as.numeric(surv_model_AFT_adjusted_table_results$conf.high)
+surv_model_AFT_adjusted_table_results$conf.low<- as.numeric(surv_model_AFT_adjusted_table_results$conf.low)
+
+PFAS <- c("PFHxS_quar_num", "PFHpA_quar_num", "PFOS_Total_quar_num", "PFOA_Linear_quar_num", "PFNA_quar_num", "PFDA_quar_num", "PFHpS_quar_num")
+
+weib_coef_hr<- rbind(exp(-surv_model_AFT_adjusted1$coefficients[2]/surv_model_AFT_adjusted1$scale),
+                          exp(-surv_model_AFT_adjusted2$coefficients[2]/surv_model_AFT_adjusted2$scale),
+                          exp(-surv_model_AFT_adjusted3$coefficients[2]/surv_model_AFT_adjusted3$scale),
+                          exp(-surv_model_AFT_adjusted4$coefficients[2]/surv_model_AFT_adjusted4$scale),
+                          exp(-surv_model_AFT_adjusted5$coefficients[2]/surv_model_AFT_adjusted5$scale),
+                          exp(-surv_model_AFT_adjusted6$coefficients[2]/surv_model_AFT_adjusted6$scale),
+                          exp(-surv_model_AFT_adjusted7$coefficients[2]/surv_model_AFT_adjusted7$scale))
+
+weib_coef_ci_low<- rbind(exp(-(surv_model_AFT_adjusted_table_results[1, "conf.low"])/surv_model_AFT_adjusted1$scale),
+                         exp(-(surv_model_AFT_adjusted_table_results[2, "conf.low"])/surv_model_AFT_adjusted2$scale),
+                         exp(-(surv_model_AFT_adjusted_table_results[3, "conf.low"])/surv_model_AFT_adjusted3$scale),
+                         exp(-(surv_model_AFT_adjusted_table_results[4, "conf.low"])/surv_model_AFT_adjusted4$scale),
+                         exp(-(surv_model_AFT_adjusted_table_results[5, "conf.low"])/surv_model_AFT_adjusted5$scale),
+                         exp(-(surv_model_AFT_adjusted_table_results[6, "conf.low"])/surv_model_AFT_adjusted6$scale),
+                         exp(-(surv_model_AFT_adjusted_table_results[7, "conf.low"])/surv_model_AFT_adjusted7$scale))
+
+weib_coef_ci_high<- rbind(exp(-(surv_model_AFT_adjusted_table_results[1, "conf.high"])/surv_model_AFT_adjusted1$scale),
+                         exp(-(surv_model_AFT_adjusted_table_results[2, "conf.high"])/surv_model_AFT_adjusted2$scale),
+                         exp(-(surv_model_AFT_adjusted_table_results[3, "conf.high"])/surv_model_AFT_adjusted3$scale),
+                         exp(-(surv_model_AFT_adjusted_table_results[4, "conf.high"])/surv_model_AFT_adjusted4$scale),
+                         exp(-(surv_model_AFT_adjusted_table_results[5, "conf.high"])/surv_model_AFT_adjusted5$scale),
+                         exp(-(surv_model_AFT_adjusted_table_results[6, "conf.high"])/surv_model_AFT_adjusted6$scale),
+                         exp(-(surv_model_AFT_adjusted_table_results[7, "conf.high"])/surv_model_AFT_adjusted7$scale))
+
+
+weib<- data.frame(PFAS,
+                  weib_coef_hr,
+                  weib_coef_ci_high,
+                  weib_coef_ci_low)
+colnames(weib)<- c("PFAS", "HR (FR)", "95% CI lower limit", "95% CI higher limit")
+
+weib_coef_hr_table<-   flextable(weib) %>% 
+                       theme_vanilla()
+weib_coef_hr_table
+
+```
+
+
+## Poisson regression model
+```{r, warning=FALSE, message=FALSE}
+## model fit
+poisson_model_adjusted1<- glm(status ~ offset(log(ttp_in_cycle1)) + PFHxS_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat,
+                         blood_ttpnomiss, weights= blood_ttpnomiss$ipw_sb_nomiss, family = poisson)
+  
+poisson_model_adjusted2<- glm(status ~ offset(log(ttp_in_cycle1)) + PFHpA_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat,
+                         blood_ttpnomiss, weights= blood_ttpnomiss$ipw_sb_nomiss, family = poisson)
+  
+poisson_model_adjusted3<- glm(status ~ offset(log(ttp_in_cycle1)) + PFOS_Total_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat,
+                         blood_ttpnomiss, weights= blood_ttpnomiss$ipw_sb_nomiss, family = poisson)
+  
+poisson_model_adjusted4<- glm(status ~ offset(log(ttp_in_cycle1)) + PFOA_Linear_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat,
+                         blood_ttpnomiss, weights= blood_ttpnomiss$ipw_sb_nomiss, family = poisson)
+  
+poisson_model_adjusted5<- glm(status ~ offset(log(ttp_in_cycle1)) + PFNA_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat,
+                         blood_ttpnomiss, weights= blood_ttpnomiss$ipw_sb_nomiss, family = poisson)
+  
+poisson_model_adjusted6<- glm(status ~ offset(log(ttp_in_cycle1)) + PFDA_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat,
+                         blood_ttpnomiss, weights= blood_ttpnomiss$ipw_sb_nomiss, family = poisson)
+  
+poisson_model_adjusted7<- glm(status ~ offset(log(ttp_in_cycle1)) + PFHpS_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat,
+                         blood_ttpnomiss, weights= blood_ttpnomiss$ipw_sb_nomiss, family = poisson)
+  
+## extract the information from the model
+poisson_model_robust_adjusted1<- as_tibble(model_parameters(poisson_model_adjusted1, ci_method="wald",vcov = "HC3" ,exponentiate = TRUE
+))
+
+poisson_model_robust_adjusted2<- as_tibble(model_parameters(poisson_model_adjusted2, ci_method="wald", vcov = "HC3",exponentiate = TRUE
+))
+
+poisson_model_robust_adjusted3<- as_tibble(model_parameters(poisson_model_adjusted3, ci_method="wald", vcov = "HC3",exponentiate = TRUE
+))
+
+poisson_model_robust_adjusted4<- as_tibble(model_parameters(poisson_model_adjusted4, ci_method="wald", vcov = "HC3",exponentiate = TRUE
+))
+
+poisson_model_robust_adjusted5<- as_tibble(model_parameters(poisson_model_adjusted5, ci_method="wald", vcov = "HC3",exponentiate = TRUE
+))
+
+poisson_model_robust_adjusted6<- as_tibble(model_parameters(poisson_model_adjusted6, ci_method="wald", vcov = "HC3",exponentiate = TRUE
+))
+
+poisson_model_robust_adjusted7<- as_tibble(model_parameters(poisson_model_adjusted7, ci_method="wald", vcov = "HC3",exponentiate = TRUE
+))
+
+
+
+
+
+poisson_model_robust_adjusted_estimate<- rbind(poisson_model_robust_adjusted1[2,2],
+                                                    poisson_model_robust_adjusted2[2,2],
+                                                    poisson_model_robust_adjusted3[2,2],
+                                                    poisson_model_robust_adjusted4[2,2],
+                                                    poisson_model_robust_adjusted5[2,2],
+                                                    poisson_model_robust_adjusted6[2,2],
+                                                    poisson_model_robust_adjusted7[2,2])
+
+poisson_model_robust_adjusted_sd<- rbind(poisson_model_robust_adjusted1[2,3],
+                                                    poisson_model_robust_adjusted2[2,3],
+                                                    poisson_model_robust_adjusted3[2,3],
+                                                    poisson_model_robust_adjusted4[2,3],
+                                                    poisson_model_robust_adjusted5[2,3],
+                                                    poisson_model_robust_adjusted6[2,3],
+                                                    poisson_model_robust_adjusted7[2,3])
+
+poisson_model_robust_adjusted_ci_low<- rbind(poisson_model_robust_adjusted1[2,5],
+                                                    poisson_model_robust_adjusted2[2,5],
+                                                    poisson_model_robust_adjusted3[2,5],
+                                                    poisson_model_robust_adjusted4[2,5],
+                                                    poisson_model_robust_adjusted5[2,5],
+                                                    poisson_model_robust_adjusted6[2,5],
+                                                    poisson_model_robust_adjusted7[2,5])
+
+poisson_model_robust_adjusted_ci_high<-rbind(poisson_model_robust_adjusted1[2,6],
+                                                    poisson_model_robust_adjusted2[2,6],
+                                                    poisson_model_robust_adjusted3[2,6],
+                                                    poisson_model_robust_adjusted4[2,6],
+                                                    poisson_model_robust_adjusted5[2,6],
+                                                    poisson_model_robust_adjusted6[2,6],
+                                                    poisson_model_robust_adjusted7[2,6])
+
+poisson_model_robust_adjusted_p<-rbind(poisson_model_robust_adjusted1[2,9],
+                                                    poisson_model_robust_adjusted2[2,9],
+                                                    poisson_model_robust_adjusted3[2,9],
+                                                    poisson_model_robust_adjusted4[2,9],
+                                                    poisson_model_robust_adjusted5[2,9],
+                                                    poisson_model_robust_adjusted6[2,9],
+                                                    poisson_model_robust_adjusted7[2,9])
+
+PFAS_name<- c("PFHxS","PFHpA","PFOS_Total","PFOA_Linear","PFNA","PFDA","PFHpS")
+
+poisson_model_robust_adjusted<- data.frame(PFAS_name,
+           round(poisson_model_robust_adjusted_estimate,3),
+           # round(poisson_model_robust_adjusted_sd,2),
+           round(poisson_model_robust_adjusted_ci_low,3),
+           round(poisson_model_robust_adjusted_ci_high,3),
+           round(poisson_model_robust_adjusted_p,4))%>% 
+unite(ci,CI_low,CI_high,sep=",")
+
+
+poisson_model_robust_adjusted_table<- flextable(poisson_model_robust_adjusted)  %>% 
+                 set_header_labels(Coefficient="HR (FR)",ci="95% CI",p="p.value") %>% 
+                 color( ~p<0.05,~p,color="red") %>% 
+                 theme_box 
+
+
+poisson_model_robust_adjusted_table
+
+```
+
+# Table S7
+## TTP
+```{r, message=FALSE,warning=FALSE}
+#################################
+#BWQS survival analysis with IPW#
+#################################
+
+bwqs_survival_code <- "data {
+    int<lower=1> N_uncensored;    //number of individual                               
+    int<lower=1> N_censored;                                        
+                       
+    vector<lower=0>[N_censored] times_censored;                          
+    vector<lower=0>[N_uncensored] times_uncensored;              
+    
+    int<lower=0> C1;                                // number of element of first mix
+    matrix[N_censored,C1] X_censored_C1;            // matrix of first mix censored
+    matrix[N_uncensored,C1] X_uncensored_C1;        // matrix of first mix uncensored
+
+
+    int<lower=0> NC;                               // covariates                                             
+    matrix[N_censored,NC] X_censored_NC;                               
+    matrix[N_uncensored,NC] X_uncensored_NC;       
+
+    vector[C1] DalpC1;                            // vector of the Dirichlet coefficients for first mix
+    
+    vector[N_uncensored] sw_uncensored;            // IPW type of weights for uncensored
+
+    vector[N_censored] sw_censored;            // IPW type of weights for censored
+
+}
+
+parameters {
+    real mu;                    // intercepts
+    real beta;                  // mixture effect
+    real <lower=0> sigma;
+    vector[NC] delta;           // covariates coefficients
+    simplex[C1] WC1;            // weights of first mix
+}
+
+transformed parameters {
+
+    vector[N_censored] Xb_censored;
+    vector[N_uncensored] Xb_uncensored;
+    Xb_censored = mu + (X_censored_C1*WC1)*beta  + X_censored_NC*delta;
+    Xb_uncensored = mu + (X_uncensored_C1*WC1)*beta  + X_uncensored_NC*delta;
+
+}
+model {
+
+    mu ~ normal(0, 10);
+    sigma ~ inv_gamma(0.01,0.01);
+    beta ~ normal(0, sigma);
+    for(j in 1:NC) delta[j] ~ normal(0,10);
+    WC1 ~ dirichlet(DalpC1);
+    for(n1 in 1:N_uncensored){
+        target += exponential_lpdf(times_uncensored[n1] | exp(Xb_uncensored[n1]))* sw_uncensored[n1]; 
+    }
+    for(n2 in 1:N_censored){
+        target += exponential_lccdf(times_censored[n2] | exp(Xb_censored[n2]))* sw_censored[n2]; 
+    }
+        }
+
+"
+
+
+
+bwqs_survival_sm <- rstan::stan_model(model_code =  bwqs_survival_code)
+
+# Read the data
+spresto<- blood_ttpnomiss %>% 
+                filter(irregular_cycle=="Regular cycle") %>%
+                select(ttp_in_cycle1,status,PFHxS_quar_num,PFHpA_quar_num,PFOS_Total_quar_num,PFOA_Linear_quar_num,PFNA_quar_num,PFDA_quar_num,PFHpS_quar_num,Analysis_Batch_recat,age_at_recruitment, pcv1_highest_education_completed_recat,ethnicity_specified_recat,pcv1_parity_recat, ipw_sb_nomiss) 
+
+
+sapply(spresto, function(x) sum(is.na(x))) 
+
+spresto <- na.omit(spresto)
+spresto <- DataExplorer::dummify(spresto)
+
+# subset the data
+spresto <- as.data.frame(spresto[,c("ttp_in_cycle1","status",'PFHxS_quar_num', 'PFHpA_quar_num', 'PFOS_Total_quar_num', 'PFOA_Linear_quar_num', 'PFNA_quar_num', 'PFDA_quar_num', 'PFHpS_quar_num',
+                                    "Analysis_Batch_recat_B2","Analysis_Batch_recat_B3", "Analysis_Batch_recat_B4","Analysis_Batch_recat_B5","age_at_recruitment",
+                                    "pcv1_highest_education_completed_recat_Primary.Secondary.Post_secondary",
+                                    "ethnicity_specified_recat_Chinese", "ethnicity_specified_recat_Indian","pcv1_parity_recat_...1","ipw_sb_nomiss")])
+
+
+# List of PFAS
+mix_name_1 <- c('PFHxS_quar_num', 'PFHpA_quar_num', 'PFOS_Total_quar_num', 'PFOA_Linear_quar_num', 'PFNA_quar_num', 'PFDA_quar_num', 'PFHpS_quar_num' )
+
+# List of covariates
+KV_name <- c("Analysis_Batch_recat_B2","Analysis_Batch_recat_B3", "Analysis_Batch_recat_B4","Analysis_Batch_recat_B5","age_at_recruitment",
+             "pcv1_highest_education_completed_recat_Primary.Secondary.Post_secondary",
+             "ethnicity_specified_recat_Chinese", "ethnicity_specified_recat_Indian","pcv1_parity_recat_...1")
+
+
+data_reg <- list(
+  N_uncensored = as.numeric(table(spresto$status))[2],
+  N_censored = as.numeric(table(spresto$status))[1],
+  
+  times_censored =  spresto$ttp_in_cycle1[spresto$status == 0],
+  times_uncensored =  spresto$ttp_in_cycle1[spresto$status == 1],
+  
+  C1 = length(PFAS_name),
+  X_censored_C1 = as.matrix(spresto[spresto$status == 0, mix_name_1]),
+  X_uncensored_C1 = as.matrix(spresto[spresto$status == 1, mix_name_1]),
+  
+  NC = length(KV_name),                                                                            
+  X_censored_NC = as.matrix(spresto[spresto$status == 0, KV_name]),
+  X_uncensored_NC = as.matrix(spresto[spresto$status == 1, KV_name]),   
+  
+  sw_censored = spresto$ipw_sb_nomiss[spresto$status == 0],
+  sw_uncensored = spresto$ipw_sb_nomiss[spresto$status == 1],
+  
+  DalpC1 = rep(1, 7)
+)
+
+fit_bwqs_survival_sm <- rstan::sampling(bwqs_survival_sm,
+                                        data = data_reg,
+                                        chains = 2,
+                                        iter = 1e4,
+                                        thin = 1,
+                                        refresh = 0, verbose = F,
+                                        control=list(max_treedepth = 20,
+                                                     adapt_delta = 0.999999999999999))
+
+
+sum_fit_bwqs_survival_sm <- round(summary(fit_bwqs_survival_sm,
+                                          probs = c(0.025, 0.975))$summary,4)
+
+
+# summarize results
+estimate<- round(c(exp(sum_fit_bwqs_survival_sm['beta','mean']), exp(sum_fit_bwqs_survival_sm['beta','2.5%']), exp(sum_fit_bwqs_survival_sm['beta','97.5%'])), 3)
+
+estimate
+
+PFAS_name<- c('PFHxS', 'PFHpA', 'PFOS_Total', 'PFOA_Linear', 'PFNA', 'PFDA', 'PFHpS')
+weights<- as.numeric(sum_fit_bwqs_survival_sm[c('WC1[1]','WC1[2]','WC1[3]','WC1[4]','WC1[5]','WC1[6]','WC1[7]'),'mean'])
+PFAS_weights<- data.frame(PFAS_name, weights) %>% 
+               arrange( desc(weights))
+PFAS_weights
+
+```
+
+## Pregnant
+```{r, message=FALSE,warning=FALSE}
+
+###############################
+#BWQS logit regression with IPW
+###############################
+
+model_bwqs_stan_w = "data {
+
+int<lower=0> N;          // number of individual
+int<lower=0> C;          // number of chemicals
+int<lower=0> K;          // number of covariates
+matrix[N,C] X;                         // matrix of indipendent variable
+matrix[N,K] KV;                       // matrix of covariates
+vector[C] Dalp;          // vector of the Dirichlet coefficients
+vector[N] sw;            // IPW type of weights
+int<lower=0, upper=1> y[N];  // outcome binomial variable
+}
+parameters {
+real beta0;              // intercepts
+real beta1;              // overall effect
+vector[K] delta;         // covariates coefficients
+simplex[C] W;            // weights for contribution of each exposure in the mixture
+}
+transformed parameters {
+vector[N] Xb;
+Xb = beta0 + beta1*(X*W) + KV*delta;
+}
+model {
+beta0 ~ normal(0, 100);
+beta1 ~ normal(0, 100);
+delta ~ normal(0, 100);
+W ~ dirichlet(Dalp);
+for(n in 1:N){
+ target += bernoulli_logit_lpmf(y[n] | Xb[n]) * sw[n];
+}
+
+
+}
+generated quantities {
+vector[N] log_lik;
+for (nn in 1:N)
+log_lik[nn] = bernoulli_logit_lpmf(y[nn] | Xb[nn]);
+}
+"
+
+
+# Read the data
+spresto<- blood %>% 
+          filter(irregular_cycle=="Regular cycle") %>%
+          select(ttp_pregnant_ref,live_birth_recat,PFHxS_quar_num,PFHpA_quar_num,PFOS_Total_quar_num,PFOA_Linear_quar_num,PFNA_quar_num,PFDA_quar_num,PFHpS_quar_num,Analysis_Batch_recat,age_at_recruitment, pcv1_highest_education_completed_recat,ethnicity_specified_recat,pcv1_parity_recat, ipw_sb_nomiss) 
+
+spresto <- na.omit(spresto)
+spresto <- DataExplorer::dummify(spresto)
+
+# subset the data
+spresto <- as.data.frame(spresto[,c('PFHxS_quar_num', 'PFHpA_quar_num', 'PFOS_Total_quar_num', 'PFOA_Linear_quar_num', 'PFNA_quar_num', 'PFDA_quar_num', 'PFHpS_quar_num',
+                                    "Analysis_Batch_recat_B2","Analysis_Batch_recat_B3", "Analysis_Batch_recat_B4","Analysis_Batch_recat_B5","age_at_recruitment",
+                                    "pcv1_highest_education_completed_recat_Primary.Secondary.Post_secondary",
+                                    "ethnicity_specified_recat_Chinese", "ethnicity_specified_recat_Indian","pcv1_parity_recat_...1",
+                                   "ipw_sb_nomiss","ttp_pregnant_ref","live_birth_recat")])
+
+
+# List of PFAS
+PFAS <- spresto[,c('PFHxS_quar_num', 'PFHpA_quar_num', 'PFOS_Total_quar_num', 'PFOA_Linear_quar_num', 'PFNA_quar_num', 'PFDA_quar_num', 'PFHpS_quar_num' )]
+
+# List of covariates
+KV_name <- c("Analysis_Batch_recat_B2","Analysis_Batch_recat_B3", "Analysis_Batch_recat_B4","Analysis_Batch_recat_B5","age_at_recruitment",
+             "pcv1_highest_education_completed_recat_Primary.Secondary.Post_secondary",
+             "ethnicity_specified_recat_Chinese", "ethnicity_specified_recat_Indian","pcv1_parity_recat_...1")
+
+# Name of the outcome - this is where you change the outcome name
+y_name  <- "ttp_pregnant_ref"
+
+# Don't touch this
+mix_name_1 <- colnames(PFAS)
+X1 = PFAS
+data_reg <- list(
+  
+  N   = nrow(spresto),
+  
+  C  = length(mix_name_1),
+  
+  X = cbind(X1),
+  
+  Dalp = rep(1, length(mix_name_1)),
+  
+  KV = spresto[,KV_name],
+  K   = length(KV_name),
+  
+  sw = spresto$ipw_sb_nomiss,
+  
+  y = as.vector(spresto[,y_name])
+)
+
+
+fit <- stan(model_code = model_bwqs_stan_w,
+            data = data_reg,
+            chains = 2,
+            iter = 1e4,
+            thin = 3,
+            refresh = 0, verbose = F,
+            control=list(max_treedepth = 20,
+                         adapt_delta = 0.999999999999999))
+
+
+sum_fit_bwqs_preg_sm <- round(summary(fit,
+                                          probs = c(0.025, 0.975))$summary,4)
+
+# extract PFAS mixture variable
+estimate<- round(c(exp(sum_fit_bwqs_preg_sm['beta1','mean']), exp(sum_fit_bwqs_preg_sm['beta1','2.5%']), exp(sum_fit_bwqs_preg_sm['beta1','97.5%'])), 3)
+
+estimate
+
+PFAS_name<- c('PFHxS', 'PFHpA', 'PFOS_Total', 'PFOA_Linear', 'PFNA', 'PFDA', 'PFHpS')
+weights<- as.numeric(sum_fit_bwqs_preg_sm[c('W[1]','W[2]','W[3]','W[4]','W[5]','W[6]','W[7]'),'mean'])
+PFAS_weights<- data.frame(PFAS_name, weights) %>% 
+               arrange( desc(weights))
+PFAS_weights
+
+```
+
+## Live birth
+```{r, message=FALSE,warning=FALSE}
+
+###############################
+#BWQS logit regression with IPW
+###############################
+
+model_bwqs_stan_w = "data {
+
+int<lower=0> N;          // number of individual
+int<lower=0> C;          // number of chemicals
+int<lower=0> K;          // number of covariates
+matrix[N,C] X;                         // matrix of indipendent variable
+matrix[N,K] KV;                       // matrix of covariates
+vector[C] Dalp;          // vector of the Dirichlet coefficients
+vector[N] sw;            // IPW type of weights
+int<lower=0, upper=1> y[N];  // outcome binomial variable
+}
+parameters {
+real beta0;              // intercepts
+real beta1;              // overall effect
+vector[K] delta;         // covariates coefficients
+simplex[C] W;            // weights for contribution of each exposure in the mixture
+}
+transformed parameters {
+vector[N] Xb;
+Xb = beta0 + beta1*(X*W) + KV*delta;
+}
+model {
+beta0 ~ normal(0, 100);
+beta1 ~ normal(0, 100);
+delta ~ normal(0, 100);
+W ~ dirichlet(Dalp);
+for(n in 1:N){
+ target += bernoulli_logit_lpmf(y[n] | Xb[n]) * sw[n];
+}
+
+
+}
+generated quantities {
+vector[N] log_lik;
+for (nn in 1:N)
+log_lik[nn] = bernoulli_logit_lpmf(y[nn] | Xb[nn]);
+}
+"
+
+
+# Read the data
+spresto<- blood %>% 
+          filter(irregular_cycle=="Regular cycle") %>%
+          select(ttp_pregnant_ref,live_birth_recat,PFHxS_quar_num,PFHpA_quar_num,PFOS_Total_quar_num,PFOA_Linear_quar_num,PFNA_quar_num,PFDA_quar_num,PFHpS_quar_num,Analysis_Batch_recat,age_at_recruitment, pcv1_highest_education_completed_recat,ethnicity_specified_recat,pcv1_parity_recat, ipw_sb_nomiss) 
+
+spresto <- na.omit(spresto)
+spresto <- DataExplorer::dummify(spresto)
+
+# subset the data
+spresto <- as.data.frame(spresto[,c('PFHxS_quar_num', 'PFHpA_quar_num', 'PFOS_Total_quar_num', 'PFOA_Linear_quar_num', 'PFNA_quar_num', 'PFDA_quar_num', 'PFHpS_quar_num',
+                                    "Analysis_Batch_recat_B2","Analysis_Batch_recat_B3", "Analysis_Batch_recat_B4","Analysis_Batch_recat_B5","age_at_recruitment",
+                                    "pcv1_highest_education_completed_recat_Primary.Secondary.Post_secondary",
+                                    "ethnicity_specified_recat_Chinese", "ethnicity_specified_recat_Indian","pcv1_parity_recat_...1",
+                                   "ipw_sb_nomiss","ttp_pregnant_ref","live_birth_recat")])
+
+
+# List of PFAS
+PFAS <- spresto[,c('PFHxS_quar_num', 'PFHpA_quar_num', 'PFOS_Total_quar_num', 'PFOA_Linear_quar_num', 'PFNA_quar_num', 'PFDA_quar_num', 'PFHpS_quar_num' )]
+
+# List of covariates
+KV_name <- c("Analysis_Batch_recat_B2","Analysis_Batch_recat_B3", "Analysis_Batch_recat_B4","Analysis_Batch_recat_B5","age_at_recruitment",
+             "pcv1_highest_education_completed_recat_Primary.Secondary.Post_secondary",
+             "ethnicity_specified_recat_Chinese", "ethnicity_specified_recat_Indian","pcv1_parity_recat_...1")
+
+# Name of the outcome - this is where you change the outcome name
+y_name  <- "live_birth_recat"
+
+# Don't touch this
+mix_name_1 <- colnames(PFAS)
+X1 = PFAS
+data_reg <- list(
+  
+  N   = nrow(spresto),
+  
+  C  = length(mix_name_1),
+  
+  X = cbind(X1),
+  
+  Dalp = rep(1, length(mix_name_1)),
+  
+  KV = spresto[,KV_name],
+  K   = length(KV_name),
+  
+  sw = spresto$ipw_sb_nomiss,
+  
+  y = as.vector(spresto[,y_name])
+)
+
+
+fit <- stan(model_code = model_bwqs_stan_w,
+            data = data_reg,
+            chains = 2,
+            iter = 1e4,
+            thin = 3,
+            refresh = 0, verbose = F,
+            control=list(max_treedepth = 20,
+                         adapt_delta = 0.999999999999999))
+
+
+sum_fit_bwqs_preg_sm <- round(summary(fit,
+                                          probs = c(0.025, 0.975))$summary,4)
+
+# extract PFAS mixture variable
+estimate<- round(c(exp(sum_fit_bwqs_preg_sm['beta1','mean']), exp(sum_fit_bwqs_preg_sm['beta1','2.5%']), exp(sum_fit_bwqs_preg_sm['beta1','97.5%'])), 3)
+
+estimate
+
+PFAS_name<- c('PFHxS', 'PFHpA', 'PFOS_Total', 'PFOA_Linear', 'PFNA', 'PFDA', 'PFHpS')
+weights<- as.numeric(sum_fit_bwqs_preg_sm[c('W[1]','W[2]','W[3]','W[4]','W[5]','W[6]','W[7]'),'mean'])
+PFAS_weights<- data.frame(PFAS_name, weights) %>% 
+               arrange( desc(weights))
+PFAS_weights
+
+```
+
+
+# Table S8
+## TTP - observed cycles (time to event outcome)
+### Individual PFAS 
+```{r,warning=FALSE,message=FALSE}
+### model fit
+surv_model_adjusted1<- coxph(Surv(ttp_in_cycle1,status) ~ PFHxS_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat+Fast_food_sc+fruit_sc,
+                         blood_ttpnomiss, weights= blood_ttpnomiss$ipw_sb_nomiss,robust=TRUE) 
+
+surv_model_adjusted2<- coxph(Surv(ttp_in_cycle1,status) ~ PFHpA_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat+Fast_food_sc+fruit_sc,
+                         blood_ttpnomiss, weights= blood_ttpnomiss$ipw_sb_nomiss,robust=TRUE) 
+
+surv_model_adjusted3<- coxph(Surv(ttp_in_cycle1,status) ~ PFOS_Total_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat+Fast_food_sc+fruit_sc,
+                         blood_ttpnomiss, weights= blood_ttpnomiss$ipw_sb_nomiss,robust=TRUE) 
+
+surv_model_adjusted4<- coxph(Surv(ttp_in_cycle1,status) ~ PFOA_Linear_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat+Fast_food_sc+fruit_sc,
+                         blood_ttpnomiss, weights= blood_ttpnomiss$ipw_sb_nomiss,robust=TRUE) 
+
+surv_model_adjusted5<- coxph(Surv(ttp_in_cycle1,status) ~ PFNA_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat+Fast_food_sc+fruit_sc,
+                         blood_ttpnomiss, weights= blood_ttpnomiss$ipw_sb_nomiss,robust=TRUE) 
+
+surv_model_adjusted6<- coxph(Surv(ttp_in_cycle1,status) ~ PFDA_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat+Fast_food_sc+fruit_sc,
+                         blood_ttpnomiss, weights= blood_ttpnomiss$ipw_sb_nomiss,robust=TRUE) 
+
+surv_model_adjusted7<- coxph(Surv(ttp_in_cycle1,status) ~ PFHpS_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat+Fast_food_sc+fruit_sc,
+                         blood_ttpnomiss, weights= blood_ttpnomiss$ipw_sb_nomiss,robust=TRUE) 
+
+
+### test proportional hazard assumption
+test_ph_assum1<- cox.zph(surv_model_adjusted1)
+test_ph_assum2<- cox.zph(surv_model_adjusted2)
+test_ph_assum3<- cox.zph(surv_model_adjusted3)
+test_ph_assum4<- cox.zph(surv_model_adjusted4)
+test_ph_assum5<- cox.zph(surv_model_adjusted5)
+test_ph_assum6<- cox.zph(surv_model_adjusted6)
+test_ph_assum7<- cox.zph(surv_model_adjusted7)
+
+test_ph_assum1
+test_ph_assum2
+test_ph_assum3
+test_ph_assum4
+test_ph_assum5
+test_ph_assum6
+test_ph_assum7
+
+### summarize models into table
+surv_model_adjusted1_table<- surv_model_adjusted1 %>%
+                               tbl_regression(exponentiate = TRUE,
+                               include = PFHxS_quar_num,
+                               show_single_row=PFHxS_quar_num,
+                               pvalue_fun = function(x) style_pvalue(x, digits = 3),
+                               estimate_fun = function(x) style_sigfig(x, digits = 3)) 
+
+surv_model_adjusted2_table<- surv_model_adjusted2 %>%
+                               tbl_regression(exponentiate = TRUE,
+                               include = PFHpA_quar_num,
+                               show_single_row=PFHpA_quar_num,
+                               pvalue_fun = function(x) style_pvalue(x, digits = 3),
+                               estimate_fun = function(x) style_sigfig(x, digits = 3)) 
+
+surv_model_adjusted3_table<- surv_model_adjusted3 %>%
+                               tbl_regression(exponentiate = TRUE,
+                               include = PFOS_Total_quar_num,
+                               show_single_row=PFOS_Total_quar_num,
+                               pvalue_fun = function(x) style_pvalue(x, digits = 3),
+                               estimate_fun = function(x) style_sigfig(x, digits = 3)) 
+
+surv_model_adjusted4_table<- surv_model_adjusted4 %>%
+                               tbl_regression(exponentiate = TRUE,
+                               include = PFOA_Linear_quar_num,
+                               show_single_row=PFOA_Linear_quar_num,
+                               pvalue_fun = function(x) style_pvalue(x, digits = 3),
+                               estimate_fun = function(x) style_sigfig(x, digits = 3)) 
+
+surv_model_adjusted5_table<- surv_model_adjusted5 %>%
+                               tbl_regression(exponentiate = TRUE,
+                               include = PFNA_quar_num,
+                               show_single_row=PFNA_quar_num,
+                               pvalue_fun = function(x) style_pvalue(x, digits = 3),
+                               estimate_fun = function(x) style_sigfig(x, digits = 3)) 
+
+surv_model_adjusted6_table<- surv_model_adjusted6 %>%
+                               tbl_regression(exponentiate = TRUE,
+                               include = PFDA_quar_num,
+                               show_single_row=PFDA_quar_num,
+                               pvalue_fun = function(x) style_pvalue(x, digits = 3),
+                               estimate_fun = function(x) style_sigfig(x, digits = 3)) 
+
+surv_model_adjusted7_table<- surv_model_adjusted7 %>%
+                               tbl_regression(exponentiate = TRUE,
+                               include = PFHpS_quar_num,
+                               show_single_row=PFHpS_quar_num,
+                               pvalue_fun = function(x) style_pvalue(x, digits = 3),
+                               estimate_fun = function(x) style_sigfig(x, digits = 3)) 
+
+### combine tables
+surv_model_adjusted_table<- tbl_stack(tbls = list(surv_model_adjusted6_table,surv_model_adjusted3_table,surv_model_adjusted4_table,surv_model_adjusted2_table,surv_model_adjusted1_table,surv_model_adjusted5_table,surv_model_adjusted7_table))%>%
+                               modify_header(
+                                   update = list(
+                                   label ~ '**PFAS Variable**'))%>%
+                               bold_p() %>%
+                               bold_labels()%>% 
+                               as_gt()%>% 
+                                  tab_footnote(
+                                    footnote=c("Adjusted model: adjusted for Batch effect, age at recruitment, Highest education status, ethinicity, parity at pcv1 visit, fruit intake, and fast-food intake"),
+                                    locations=  cells_stubhead()
+                         )
+
+surv_model_adjusted_table
+
+```
+
+### Joint effect of PFAS - BWQS
+```{r, message=FALSE,warning=FALSE}
+#################################
+#BWQS survival analysis with IPW#
+#################################
+
+bwqs_survival_code <- "data {
+    int<lower=1> N_uncensored;    //number of individual                               
+    int<lower=1> N_censored;                                        
+                       
+    vector<lower=0>[N_censored] times_censored;                          
+    vector<lower=0>[N_uncensored] times_uncensored;              
+    
+    int<lower=0> C1;                                // number of element of first mix
+    matrix[N_censored,C1] X_censored_C1;            // matrix of first mix censored
+    matrix[N_uncensored,C1] X_uncensored_C1;        // matrix of first mix uncensored
+
+
+    int<lower=0> NC;                               // covariates                                             
+    matrix[N_censored,NC] X_censored_NC;                               
+    matrix[N_uncensored,NC] X_uncensored_NC;       
+
+    vector[C1] DalpC1;                            // vector of the Dirichlet coefficients for first mix
+    
+    vector[N_uncensored] sw_uncensored;            // IPW type of weights for uncensored
+
+    vector[N_censored] sw_censored;            // IPW type of weights for censored
+
+}
+
+parameters {
+    real mu;                    // intercepts
+    real beta;                  // mixture effect
+    real <lower=0> sigma;
+    vector[NC] delta;           // covariates coefficients
+    simplex[C1] WC1;            // weights of first mix
+}
+
+transformed parameters {
+
+    vector[N_censored] Xb_censored;
+    vector[N_uncensored] Xb_uncensored;
+    Xb_censored = mu + (X_censored_C1*WC1)*beta  + X_censored_NC*delta;
+    Xb_uncensored = mu + (X_uncensored_C1*WC1)*beta  + X_uncensored_NC*delta;
+
+}
+model {
+
+    mu ~ normal(0, 10);
+    sigma ~ inv_gamma(0.01,0.01);
+    beta ~ normal(0, sigma);
+    for(j in 1:NC) delta[j] ~ normal(0,10);
+    WC1 ~ dirichlet(DalpC1);
+    for(n1 in 1:N_uncensored){
+        target += exponential_lpdf(times_uncensored[n1] | exp(Xb_uncensored[n1]))* sw_uncensored[n1]; 
+    }
+    for(n2 in 1:N_censored){
+        target += exponential_lccdf(times_censored[n2] | exp(Xb_censored[n2]))* sw_censored[n2]; 
+    }
+        }
+
+"
+
+
+
+bwqs_survival_sm <- rstan::stan_model(model_code =  bwqs_survival_code)
+
+# Read the data
+spresto<- blood_ttpnomiss %>% 
+  select(ttp_in_cycle1,status,PFHxS_quar_num,PFHpA_quar_num,PFOS_Total_quar_num,PFOA_Linear_quar_num,PFNA_quar_num,PFDA_quar_num,PFHpS_quar_num,Analysis_Batch_recat,age_at_recruitment, pcv1_highest_education_completed_recat,ethnicity_specified_recat,pcv1_parity_recat, Fast_food_sc,fruit_sc, ipw_sb_nomiss)
+
+
+sapply(spresto, function(x) sum(is.na(x))) 
+
+spresto <- na.omit(spresto)
+spresto <- DataExplorer::dummify(spresto)
+
+# subset the data
+spresto <- as.data.frame(spresto[,c("ttp_in_cycle1","status",'PFHxS_quar_num', 'PFHpA_quar_num', 'PFOS_Total_quar_num', 'PFOA_Linear_quar_num', 'PFNA_quar_num', 'PFDA_quar_num', 'PFHpS_quar_num',
+                                    "Analysis_Batch_recat_B2","Analysis_Batch_recat_B3", "Analysis_Batch_recat_B4","Analysis_Batch_recat_B5","age_at_recruitment",
+                                    "pcv1_highest_education_completed_recat_Primary.Secondary.Post_secondary",
+                                    "ethnicity_specified_recat_Chinese", "ethnicity_specified_recat_Indian","pcv1_parity_recat_...1","Fast_food_sc","fruit_sc","ipw_sb_nomiss")])
+
+
+# List of PFAS
+mix_name_1 <- c('PFHxS_quar_num', 'PFHpA_quar_num', 'PFOS_Total_quar_num', 'PFOA_Linear_quar_num', 'PFNA_quar_num', 'PFDA_quar_num', 'PFHpS_quar_num' )
+
+# List of covariates
+KV_name <- c("Analysis_Batch_recat_B2","Analysis_Batch_recat_B3", "Analysis_Batch_recat_B4","Analysis_Batch_recat_B5","age_at_recruitment",
+             "pcv1_highest_education_completed_recat_Primary.Secondary.Post_secondary",
+             "ethnicity_specified_recat_Chinese", "ethnicity_specified_recat_Indian","pcv1_parity_recat_...1","Fast_food_sc","fruit_sc")
+
+
+data_reg <- list(
+  N_uncensored = as.numeric(table(spresto$status))[2],
+  N_censored = as.numeric(table(spresto$status))[1],
+  
+  times_censored =  spresto$ttp_in_cycle1[spresto$status == 0],
+  times_uncensored =  spresto$ttp_in_cycle1[spresto$status == 1],
+  
+  C1 = length(PFAS_name),
+  X_censored_C1 = as.matrix(spresto[spresto$status == 0, mix_name_1]),
+  X_uncensored_C1 = as.matrix(spresto[spresto$status == 1, mix_name_1]),
+  
+  NC = length(KV_name),                                                                            
+  X_censored_NC = as.matrix(spresto[spresto$status == 0, KV_name]),
+  X_uncensored_NC = as.matrix(spresto[spresto$status == 1, KV_name]),   
+  
+  sw_censored = spresto$ipw_sb_nomiss[spresto$status == 0],
+  sw_uncensored = spresto$ipw_sb_nomiss[spresto$status == 1],
+  
+  DalpC1 = rep(1, 7)
+)
+
+fit_bwqs_survival_sm <- rstan::sampling(bwqs_survival_sm,
+                                        data = data_reg,
+                                        chains = 2,
+                                        iter = 1e4,
+                                        thin = 1,
+                                        refresh = 0, verbose = F,
+                                        control=list(max_treedepth = 20,
+                                                     adapt_delta = 0.999999999999999))
+
+
+sum_fit_bwqs_survival_sm <- round(summary(fit_bwqs_survival_sm,
+                                          probs = c(0.025, 0.975))$summary,4)
+
+
+# summarize results
+estimate<- round(c(exp(sum_fit_bwqs_survival_sm['beta','mean']), exp(sum_fit_bwqs_survival_sm['beta','2.5%']), exp(sum_fit_bwqs_survival_sm['beta','97.5%'])), 3)
+
+estimate
+
+PFAS_name<- c('PFHxS', 'PFHpA', 'PFOS_Total', 'PFOA_Linear', 'PFNA', 'PFDA', 'PFHpS')
+weights<- as.numeric(sum_fit_bwqs_survival_sm[c('WC1[1]','WC1[2]','WC1[3]','WC1[4]','WC1[5]','WC1[6]','WC1[7]'),'mean'])
+PFAS_weights<- data.frame(PFAS_name, weights) %>% 
+               arrange( desc(weights))
+PFAS_weights
+
+```
+
+
+
+## Pregnant
+### Individual PFAS
+```{r, message=FALSE,warning=FALSE}
+## fit the model
+PFAS_preg_adjusted_bm_5_matched_reg2<- glm(ttp_pregnant_ref ~ PFHxS_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat+Fast_food_sc+fruit_sc,data=blood, family='binomial',weights = blood$ipw_sb_nomiss) 
+
+PFAS_preg_adjusted_bm_4_matched_reg2<- glm(ttp_pregnant_ref ~PFHpA_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat+Fast_food_sc+fruit_sc,data=blood, family='binomial',weights = blood$ipw_sb_nomiss)
+
+PFAS_preg_adjusted_bm_2_matched_reg2<- glm(ttp_pregnant_ref ~PFOS_Total_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat+Fast_food_sc+fruit_sc,data=blood, family='binomial',weights = blood$ipw_sb_nomiss)
+
+PFAS_preg_adjusted_bm_3_matched_reg2<- glm(ttp_pregnant_ref ~PFOA_Linear_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat+Fast_food_sc+fruit_sc,data=blood, family='binomial',weights = blood$ipw_sb_nomiss)
+
+PFAS_preg_adjusted_bm_6_matched_reg2<- glm(ttp_pregnant_ref ~PFNA_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat+Fast_food_sc+fruit_sc,data=blood, family='binomial',weights = blood$ipw_sb_nomiss)
+
+PFAS_preg_adjusted_bm_1_matched_reg2<- glm(ttp_pregnant_ref ~PFDA_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat+Fast_food_sc+fruit_sc,data=blood, family='binomial',weights = blood$ipw_sb_nomiss)
+
+PFAS_preg_adjusted_bm_7_matched_reg2<- glm(ttp_pregnant_ref ~PFHpS_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat+Fast_food_sc+fruit_sc,data=blood, family='binomial',weights = blood$ipw_sb_nomiss)
+
+## extract the information from the model
+PFAS_preg_adjusted_bm_1_matched_robust_reg2<- as_tibble(model_parameters(PFAS_preg_adjusted_bm_1_matched_reg2, ci_method="wald",vcov = "HC3" ,exponentiate = TRUE
+))
+
+PFAS_preg_adjusted_bm_2_matched_robust_reg2<- as_tibble(model_parameters(PFAS_preg_adjusted_bm_2_matched_reg2, ci_method="wald", vcov = "HC3",exponentiate = TRUE
+))
+
+PFAS_preg_adjusted_bm_3_matched_robust_reg2<- as_tibble(model_parameters(PFAS_preg_adjusted_bm_3_matched_reg2, ci_method="wald", vcov = "HC3",exponentiate = TRUE
+))
+
+PFAS_preg_adjusted_bm_4_matched_robust_reg2<- as_tibble(model_parameters(PFAS_preg_adjusted_bm_4_matched_reg2, ci_method="wald", vcov = "HC3",exponentiate = TRUE
+))
+
+PFAS_preg_adjusted_bm_5_matched_robust_reg2<- as_tibble(model_parameters(PFAS_preg_adjusted_bm_5_matched_reg2, ci_method="wald", vcov = "HC3",exponentiate = TRUE
+))
+
+PFAS_preg_adjusted_bm_6_matched_robust_reg2<- as_tibble(model_parameters(PFAS_preg_adjusted_bm_6_matched_reg2, ci_method="wald", vcov = "HC3",exponentiate = TRUE
+))
+
+PFAS_preg_adjusted_bm_7_matched_robust_reg2<- as_tibble(model_parameters(PFAS_preg_adjusted_bm_7_matched_reg2, ci_method="wald", vcov = "HC3",exponentiate = TRUE
+))
+
+
+
+
+
+
+
+PFAS_preg_adjusted_bm_matched_robust_reg2_estimate<- rbind(PFAS_preg_adjusted_bm_1_matched_robust_reg2[2,2],
+                                                    PFAS_preg_adjusted_bm_2_matched_robust_reg2[2,2],
+                                                    PFAS_preg_adjusted_bm_3_matched_robust_reg2[2,2],
+                                                    PFAS_preg_adjusted_bm_4_matched_robust_reg2[2,2],
+                                                    PFAS_preg_adjusted_bm_5_matched_robust_reg2[2,2],
+                                                    PFAS_preg_adjusted_bm_6_matched_robust_reg2[2,2],
+                                                    PFAS_preg_adjusted_bm_7_matched_robust_reg2[2,2])
+
+PFAS_preg_adjusted_bm_matched_robust_reg2_sd<-rbind(PFAS_preg_adjusted_bm_1_matched_robust_reg2[2,3],
+                                                    PFAS_preg_adjusted_bm_2_matched_robust_reg2[2,3],
+                                                    PFAS_preg_adjusted_bm_3_matched_robust_reg2[2,3],
+                                                    PFAS_preg_adjusted_bm_4_matched_robust_reg2[2,3],
+                                                    PFAS_preg_adjusted_bm_5_matched_robust_reg2[2,3],
+                                                    PFAS_preg_adjusted_bm_6_matched_robust_reg2[2,3],
+                                                    PFAS_preg_adjusted_bm_7_matched_robust_reg2[2,3])
+
+PFAS_preg_adjusted_bm_matched_robust_reg2_ci_low<-rbind(PFAS_preg_adjusted_bm_1_matched_robust_reg2[2,5],
+                                                    PFAS_preg_adjusted_bm_2_matched_robust_reg2[2,5],
+                                                    PFAS_preg_adjusted_bm_3_matched_robust_reg2[2,5],
+                                                    PFAS_preg_adjusted_bm_4_matched_robust_reg2[2,5],
+                                                    PFAS_preg_adjusted_bm_5_matched_robust_reg2[2,5],
+                                                    PFAS_preg_adjusted_bm_6_matched_robust_reg2[2,5],
+                                                    PFAS_preg_adjusted_bm_7_matched_robust_reg2[2,5])
+
+PFAS_preg_adjusted_bm_matched_robust_reg2_ci_high<-rbind(PFAS_preg_adjusted_bm_1_matched_robust_reg2[2,6],
+                                                    PFAS_preg_adjusted_bm_2_matched_robust_reg2[2,6],
+                                                    PFAS_preg_adjusted_bm_3_matched_robust_reg2[2,6],
+                                                    PFAS_preg_adjusted_bm_4_matched_robust_reg2[2,6],
+                                                    PFAS_preg_adjusted_bm_5_matched_robust_reg2[2,6],
+                                                    PFAS_preg_adjusted_bm_6_matched_robust_reg2[2,6],
+                                                    PFAS_preg_adjusted_bm_7_matched_robust_reg2[2,6])
+
+PFAS_preg_adjusted_bm_matched_robust_reg2_p<-rbind(PFAS_preg_adjusted_bm_1_matched_robust_reg2[2,9],
+                                                    PFAS_preg_adjusted_bm_2_matched_robust_reg2[2,9],
+                                                    PFAS_preg_adjusted_bm_3_matched_robust_reg2[2,9],
+                                                    PFAS_preg_adjusted_bm_4_matched_robust_reg2[2,9],
+                                                    PFAS_preg_adjusted_bm_5_matched_robust_reg2[2,9],
+                                                    PFAS_preg_adjusted_bm_6_matched_robust_reg2[2,9],
+                                                    PFAS_preg_adjusted_bm_7_matched_robust_reg2[2,9])
+
+PFAS_name<- c("PFDA","PFOS_Total","PFOA_Linear","PFHpA","PFHxS","PFNA","PFHpS")
+
+PFAS_preg_adjusted_bm_matched_robust_reg2<- data.frame(PFAS_name,
+           round(PFAS_preg_adjusted_bm_matched_robust_reg2_estimate,3),
+           # round(PFAS_preg_adjusted_bm_matched_robust_reg2_sd,2),
+           round(PFAS_preg_adjusted_bm_matched_robust_reg2_ci_low,3),
+           round(PFAS_preg_adjusted_bm_matched_robust_reg2_ci_high,3),
+           round(PFAS_preg_adjusted_bm_matched_robust_reg2_p,4))%>% 
+unite(ci,CI_low,CI_high,sep=",")
+
+
+PFAS_preg_adjusted_bm_matched_robust_reg2_table1<- flextable(PFAS_preg_adjusted_bm_matched_robust_reg2)  %>% 
+                 set_header_labels(Coefficient="OR",ci="95% CI",p="p.value") %>% 
+                 add_footer_lines(values=c("p.value less than 0.05 is marked in red","Adjusted model: adjusted for Batch effect, age at recruitment, Highest education status, ethinicity, parity at pcv1 visit, fruit intake, and fast-food intake"))%>% 
+                 color( ~p<0.05,~p,color="red") %>% 
+                 theme_box 
+
+
+PFAS_preg_adjusted_bm_matched_robust_reg2_table1
+
+
+```
+
+
+
+### Joint effect of PFAS - BWQS
+```{r, message=FALSE,warning=FALSE}
+
+###############################
+#BWQS logit regression with IPW
+###############################
+
+model_bwqs_stan_w = "data {
+
+int<lower=0> N;          // number of individual
+int<lower=0> C;          // number of chemicals
+int<lower=0> K;          // number of covariates
+matrix[N,C] X;                         // matrix of indipendent variable
+matrix[N,K] KV;                       // matrix of covariates
+vector[C] Dalp;          // vector of the Dirichlet coefficients
+vector[N] sw;            // IPW type of weights
+int<lower=0, upper=1> y[N];  // outcome binomial variable
+}
+parameters {
+real beta0;              // intercepts
+real beta1;              // overall effect
+vector[K] delta;         // covariates coefficients
+simplex[C] W;            // weights for contribution of each exposure in the mixture
+}
+transformed parameters {
+vector[N] Xb;
+Xb = beta0 + beta1*(X*W) + KV*delta;
+}
+model {
+beta0 ~ normal(0, 100);
+beta1 ~ normal(0, 100);
+delta ~ normal(0, 100);
+W ~ dirichlet(Dalp);
+for(n in 1:N){
+ target += bernoulli_logit_lpmf(y[n] | Xb[n]) * sw[n];
+}
+
+
+}
+generated quantities {
+vector[N] log_lik;
+for (nn in 1:N)
+log_lik[nn] = bernoulli_logit_lpmf(y[nn] | Xb[nn]);
+}
+"
+
+
+# Read the data
+spresto<- blood %>% 
+  select(ttp_pregnant_ref,live_birth_recat,PFHxS_quar_num,PFHpA_quar_num,PFOS_Total_quar_num,PFOA_Linear_quar_num,PFNA_quar_num,PFDA_quar_num,PFHpS_quar_num,Analysis_Batch_recat,age_at_recruitment, pcv1_highest_education_completed_recat,ethnicity_specified_recat,pcv1_parity_recat,Fast_food_sc,fruit_sc, ipw_sb_nomiss)
+
+spresto <- na.omit(spresto)
+spresto <- DataExplorer::dummify(spresto)
+
+# subset the data
+spresto <- as.data.frame(spresto[,c('PFHxS_quar_num', 'PFHpA_quar_num', 'PFOS_Total_quar_num', 'PFOA_Linear_quar_num', 'PFNA_quar_num', 'PFDA_quar_num', 'PFHpS_quar_num',
+                                    "Analysis_Batch_recat_B2","Analysis_Batch_recat_B3", "Analysis_Batch_recat_B4","Analysis_Batch_recat_B5","age_at_recruitment",
+                                    "pcv1_highest_education_completed_recat_Primary.Secondary.Post_secondary",
+                                    "ethnicity_specified_recat_Chinese", "ethnicity_specified_recat_Indian","pcv1_parity_recat_...1",
+                                   "ipw_sb_nomiss","ttp_pregnant_ref","live_birth_recat","Fast_food_sc","fruit_sc")])
+
+
+# List of PFAS
+PFAS <- spresto[,c('PFHxS_quar_num', 'PFHpA_quar_num', 'PFOS_Total_quar_num', 'PFOA_Linear_quar_num', 'PFNA_quar_num', 'PFDA_quar_num', 'PFHpS_quar_num' )]
+
+# List of covariates
+KV_name <- c("Analysis_Batch_recat_B2","Analysis_Batch_recat_B3", "Analysis_Batch_recat_B4","Analysis_Batch_recat_B5","age_at_recruitment",
+             "pcv1_highest_education_completed_recat_Primary.Secondary.Post_secondary",
+             "ethnicity_specified_recat_Chinese", "ethnicity_specified_recat_Indian","pcv1_parity_recat_...1","Fast_food_sc","fruit_sc")
+
+# Name of the outcome - this is where you change the outcome name
+y_name  <- "ttp_pregnant_ref"
+
+# Don't touch this
+mix_name_1 <- colnames(PFAS)
+X1 = PFAS
+data_reg <- list(
+  
+  N   = nrow(spresto),
+  
+  C  = length(mix_name_1),
+  
+  X = cbind(X1),
+  
+  Dalp = rep(1, length(mix_name_1)),
+  
+  KV = spresto[,KV_name],
+  K   = length(KV_name),
+  
+  sw = spresto$ipw_sb_nomiss,
+  
+  y = as.vector(spresto[,y_name])
+)
+
+
+fit <- stan(model_code = model_bwqs_stan_w,
+            data = data_reg,
+            chains = 2,
+            iter = 1e4,
+            thin = 3,
+            refresh = 0, verbose = F,
+            control=list(max_treedepth = 20,
+                         adapt_delta = 0.999999999999999))
+
+
+sum_fit_bwqs_preg_sm <- round(summary(fit,
+                                          probs = c(0.025, 0.975))$summary,4)
+
+# extract PFAS mixture variable
+estimate<- round(c(exp(sum_fit_bwqs_preg_sm['beta1','mean']), exp(sum_fit_bwqs_preg_sm['beta1','2.5%']), exp(sum_fit_bwqs_preg_sm['beta1','97.5%'])), 3)
+
+estimate
+
+PFAS_name<- c('PFHxS', 'PFHpA', 'PFOS_Total', 'PFOA_Linear', 'PFNA', 'PFDA', 'PFHpS')
+weights<- as.numeric(sum_fit_bwqs_preg_sm[c('W[1]','W[2]','W[3]','W[4]','W[5]','W[6]','W[7]'),'mean'])
+PFAS_weights<- data.frame(PFAS_name, weights) %>% 
+               arrange( desc(weights))
+PFAS_weights
+
+```
+
+## Live birth
+### Individual PFAS
+```{r, message=FALSE,warning=FALSE}
+## fit the model
+PFAS_lb_adjusted_bm_5_matched_reg2<- glm(live_birth_recat ~ PFHxS_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat+Fast_food_sc+fruit_sc,data=blood, family='binomial',weights = blood$ipw_sb_nomiss) 
+
+
+PFAS_lb_adjusted_bm_4_matched_reg2<- glm(live_birth_recat ~PFHpA_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat+Fast_food_sc+fruit_sc,data=blood, family='binomial',weights = blood$ipw_sb_nomiss)
+
+PFAS_lb_adjusted_bm_2_matched_reg2<- glm(live_birth_recat ~PFOS_Total_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat+Fast_food_sc+fruit_sc,data=blood, family='binomial',weights = blood$ipw_sb_nomiss)
+
+PFAS_lb_adjusted_bm_3_matched_reg2<- glm(live_birth_recat ~PFOA_Linear_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat+Fast_food_sc+fruit_sc,data=blood, family='binomial',weights = blood$ipw_sb_nomiss)
+
+PFAS_lb_adjusted_bm_6_matched_reg2<- glm(live_birth_recat ~PFNA_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat+Fast_food_sc+fruit_sc,data=blood, family='binomial',weights = blood$ipw_sb_nomiss)
+
+PFAS_lb_adjusted_bm_1_matched_reg2<- glm(live_birth_recat ~PFDA_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat+Fast_food_sc+fruit_sc,data=blood, family='binomial',weights = blood$ipw_sb_nomiss)
+
+PFAS_lb_adjusted_bm_7_matched_reg2<- glm(live_birth_recat ~PFHpS_quar_num+Analysis_Batch_recat+age_at_recruitment+ pcv1_highest_education_completed_recat+ethnicity_specified_recat+pcv1_parity_recat+Fast_food_sc+fruit_sc,data=blood, family='binomial',weights = blood$ipw_sb_nomiss)
+
+## extract the information from the model
+PFAS_lb_adjusted_bm_1_matched_robust_reg2<- as_tibble(model_parameters(PFAS_lb_adjusted_bm_1_matched_reg2, ci_method="wald",vcov = "HC3" ,exponentiate = TRUE
+))
+
+PFAS_lb_adjusted_bm_2_matched_robust_reg2<- as_tibble(model_parameters(PFAS_lb_adjusted_bm_2_matched_reg2, ci_method="wald", vcov = "HC3",exponentiate = TRUE
+))
+
+PFAS_lb_adjusted_bm_3_matched_robust_reg2<- as_tibble(model_parameters(PFAS_lb_adjusted_bm_3_matched_reg2, ci_method="wald", vcov = "HC3",exponentiate = TRUE
+))
+
+PFAS_lb_adjusted_bm_4_matched_robust_reg2<- as_tibble(model_parameters(PFAS_lb_adjusted_bm_4_matched_reg2, ci_method="wald", vcov = "HC3",exponentiate = TRUE
+))
+
+PFAS_lb_adjusted_bm_5_matched_robust_reg2<- as_tibble(model_parameters(PFAS_lb_adjusted_bm_5_matched_reg2, ci_method="wald", vcov = "HC3",exponentiate = TRUE
+))
+
+PFAS_lb_adjusted_bm_6_matched_robust_reg2<- as_tibble(model_parameters(PFAS_lb_adjusted_bm_6_matched_reg2, ci_method="wald", vcov = "HC3",exponentiate = TRUE
+))
+
+PFAS_lb_adjusted_bm_7_matched_robust_reg2<- as_tibble(model_parameters(PFAS_lb_adjusted_bm_7_matched_reg2, ci_method="wald", vcov = "HC3",exponentiate = TRUE
+))
+
+
+
+
+PFAS_lb_adjusted_bm_matched_robust_reg2_estimate<- rbind(PFAS_lb_adjusted_bm_1_matched_robust_reg2[2,2],
+                                                    PFAS_lb_adjusted_bm_2_matched_robust_reg2[2,2],
+                                                    PFAS_lb_adjusted_bm_3_matched_robust_reg2[2,2],
+                                                    PFAS_lb_adjusted_bm_4_matched_robust_reg2[2,2],
+                                                    PFAS_lb_adjusted_bm_5_matched_robust_reg2[2,2],
+                                                    PFAS_lb_adjusted_bm_6_matched_robust_reg2[2,2],
+                                                    PFAS_lb_adjusted_bm_7_matched_robust_reg2[2,2])
+
+PFAS_lb_adjusted_bm_matched_robust_reg2_sd<-rbind(PFAS_lb_adjusted_bm_1_matched_robust_reg2[2,3],
+                                                    PFAS_lb_adjusted_bm_2_matched_robust_reg2[2,3],
+                                                    PFAS_lb_adjusted_bm_3_matched_robust_reg2[2,3],
+                                                    PFAS_lb_adjusted_bm_4_matched_robust_reg2[2,3],
+                                                    PFAS_lb_adjusted_bm_5_matched_robust_reg2[2,3],
+                                                    PFAS_lb_adjusted_bm_6_matched_robust_reg2[2,3],
+                                                    PFAS_lb_adjusted_bm_7_matched_robust_reg2[2,3])
+
+PFAS_lb_adjusted_bm_matched_robust_reg2_ci_low<-rbind(PFAS_lb_adjusted_bm_1_matched_robust_reg2[2,5],
+                                                    PFAS_lb_adjusted_bm_2_matched_robust_reg2[2,5],
+                                                    PFAS_lb_adjusted_bm_3_matched_robust_reg2[2,5],
+                                                    PFAS_lb_adjusted_bm_4_matched_robust_reg2[2,5],
+                                                    PFAS_lb_adjusted_bm_5_matched_robust_reg2[2,5],
+                                                    PFAS_lb_adjusted_bm_6_matched_robust_reg2[2,5],
+                                                    PFAS_lb_adjusted_bm_7_matched_robust_reg2[2,5])
+
+PFAS_lb_adjusted_bm_matched_robust_reg2_ci_high<-rbind(PFAS_lb_adjusted_bm_1_matched_robust_reg2[2,6],
+                                                    PFAS_lb_adjusted_bm_2_matched_robust_reg2[2,6],
+                                                    PFAS_lb_adjusted_bm_3_matched_robust_reg2[2,6],
+                                                    PFAS_lb_adjusted_bm_4_matched_robust_reg2[2,6],
+                                                    PFAS_lb_adjusted_bm_5_matched_robust_reg2[2,6],
+                                                    PFAS_lb_adjusted_bm_6_matched_robust_reg2[2,6],
+                                                    PFAS_lb_adjusted_bm_7_matched_robust_reg2[2,6])
+
+PFAS_lb_adjusted_bm_matched_robust_reg2_p<-rbind(PFAS_lb_adjusted_bm_1_matched_robust_reg2[2,9],
+                                                    PFAS_lb_adjusted_bm_2_matched_robust_reg2[2,9],
+                                                    PFAS_lb_adjusted_bm_3_matched_robust_reg2[2,9],
+                                                    PFAS_lb_adjusted_bm_4_matched_robust_reg2[2,9],
+                                                    PFAS_lb_adjusted_bm_5_matched_robust_reg2[2,9],
+                                                    PFAS_lb_adjusted_bm_6_matched_robust_reg2[2,9],
+                                                    PFAS_lb_adjusted_bm_7_matched_robust_reg2[2,9])
+
+PFAS_name<- c("PFDA","PFOS_Total","PFOA_Linear","PFHpA","PFHxS","PFNA","PFHpS")
+
+PFAS_lb_adjusted_bm_matched_robust_reg2<- data.frame(PFAS_name,
+           round(PFAS_lb_adjusted_bm_matched_robust_reg2_estimate,3),
+           # round(PFAS_lb_adjusted_bm_matched_robust_reg2_sd,3),
+           round(PFAS_lb_adjusted_bm_matched_robust_reg2_ci_low,3),
+           round(PFAS_lb_adjusted_bm_matched_robust_reg2_ci_high,3),
+           round(PFAS_lb_adjusted_bm_matched_robust_reg2_p,4))%>% 
+unite(ci,CI_low,CI_high,sep=",")
+
+
+PFAS_lb_adjusted_bm_matched_robust_reg2_table<- flextable(PFAS_lb_adjusted_bm_matched_robust_reg2)%>% 
+                 set_header_labels(Coefficient="OR",ci="95% CI",p="p.value") %>% 
+                 add_footer_lines(values=c("p.value less than 0.05 is marked in red","Adjusted model: adjusted for Batch effect, age at recruitment, Highest education status, ethinicity, parity at pcv1 visit, fruit intake, and fast-food intake"))%>% 
+                 color( ~p<0.05,~p,color="red") %>% 
+                 theme_box 
+
+
+PFAS_lb_adjusted_bm_matched_robust_reg2_table
+
+```
+
+### Joint effect of PFAS - BWQS
+```{r, message=FALSE,warning=FALSE}
+
+###############################
+#BWQS logit regression with IPW
+###############################
+
+model_bwqs_stan_w = "data {
+
+int<lower=0> N;          // number of individual
+int<lower=0> C;          // number of chemicals
+int<lower=0> K;          // number of covariates
+matrix[N,C] X;                         // matrix of indipendent variable
+matrix[N,K] KV;                       // matrix of covariates
+vector[C] Dalp;          // vector of the Dirichlet coefficients
+vector[N] sw;            // IPW type of weights
+int<lower=0, upper=1> y[N];  // outcome binomial variable
+}
+parameters {
+real beta0;              // intercepts
+real beta1;              // overall effect
+vector[K] delta;         // covariates coefficients
+simplex[C] W;            // weights for contribution of each exposure in the mixture
+}
+transformed parameters {
+vector[N] Xb;
+Xb = beta0 + beta1*(X*W) + KV*delta;
+}
+model {
+beta0 ~ normal(0, 100);
+beta1 ~ normal(0, 100);
+delta ~ normal(0, 100);
+W ~ dirichlet(Dalp);
+for(n in 1:N){
+ target += bernoulli_logit_lpmf(y[n] | Xb[n]) * sw[n];
+}
+
+
+}
+generated quantities {
+vector[N] log_lik;
+for (nn in 1:N)
+log_lik[nn] = bernoulli_logit_lpmf(y[nn] | Xb[nn]);
+}
+"
+
+
+# Read the data
+spresto<- blood %>% 
+  select(ttp_pregnant_ref,live_birth_recat,PFHxS_quar_num,PFHpA_quar_num,PFOS_Total_quar_num,PFOA_Linear_quar_num,PFNA_quar_num,PFDA_quar_num,PFHpS_quar_num,Analysis_Batch_recat,age_at_recruitment, pcv1_highest_education_completed_recat,ethnicity_specified_recat,pcv1_parity_recat,Fast_food_sc,fruit_sc, ipw_sb_nomiss)
+
+spresto <- na.omit(spresto)
+spresto <- DataExplorer::dummify(spresto)
+
+# subset the data
+spresto <- as.data.frame(spresto[,c('PFHxS_quar_num', 'PFHpA_quar_num', 'PFOS_Total_quar_num', 'PFOA_Linear_quar_num', 'PFNA_quar_num', 'PFDA_quar_num', 'PFHpS_quar_num',
+                                    "Analysis_Batch_recat_B2","Analysis_Batch_recat_B3", "Analysis_Batch_recat_B4","Analysis_Batch_recat_B5","age_at_recruitment",
+                                    "pcv1_highest_education_completed_recat_Primary.Secondary.Post_secondary",
+                                    "ethnicity_specified_recat_Chinese", "ethnicity_specified_recat_Indian","pcv1_parity_recat_...1",
+                                   "ipw_sb_nomiss","ttp_pregnant_ref","live_birth_recat","Fast_food_sc","fruit_sc")])
+
+
+# List of PFAS
+PFAS <- spresto[,c('PFHxS_quar_num', 'PFHpA_quar_num', 'PFOS_Total_quar_num', 'PFOA_Linear_quar_num', 'PFNA_quar_num', 'PFDA_quar_num', 'PFHpS_quar_num' )]
+
+# List of covariates
+KV_name <- c("Analysis_Batch_recat_B2","Analysis_Batch_recat_B3", "Analysis_Batch_recat_B4","Analysis_Batch_recat_B5","age_at_recruitment",
+             "pcv1_highest_education_completed_recat_Primary.Secondary.Post_secondary",
+             "ethnicity_specified_recat_Chinese", "ethnicity_specified_recat_Indian","pcv1_parity_recat_...1","Fast_food_sc","fruit_sc")
+
+# Name of the outcome - this is where you change the outcome name
+y_name  <- "live_birth_recat"
+
+# Don't touch this
+mix_name_1 <- colnames(PFAS)
+X1 = PFAS
+data_reg <- list(
+  
+  N   = nrow(spresto),
+  
+  C  = length(mix_name_1),
+  
+  X = cbind(X1),
+  
+  Dalp = rep(1, length(mix_name_1)),
+  
+  KV = spresto[,KV_name],
+  K   = length(KV_name),
+  
+  sw = spresto$ipw_sb_nomiss,
+  
+  y = as.vector(spresto[,y_name])
+)
+
+
+fit <- stan(model_code = model_bwqs_stan_w,
+            data = data_reg,
+            chains = 2,
+            iter = 1e4,
+            thin = 3,
+            refresh = 0, verbose = F,
+            control=list(max_treedepth = 20,
+                         adapt_delta = 0.999999999999999))
+
+
+sum_fit_bwqs_preg_sm <- round(summary(fit,
+                                          probs = c(0.025, 0.975))$summary,4)
+
+# extract PFAS mixture variable
+estimate<- round(c(exp(sum_fit_bwqs_preg_sm['beta1','mean']), exp(sum_fit_bwqs_preg_sm['beta1','2.5%']), exp(sum_fit_bwqs_preg_sm['beta1','97.5%'])), 3)
+
+estimate
+
+PFAS_name<- c('PFHxS', 'PFHpA', 'PFOS_Total', 'PFOA_Linear', 'PFNA', 'PFDA', 'PFHpS')
+weights<- as.numeric(sum_fit_bwqs_preg_sm[c('W[1]','W[2]','W[3]','W[4]','W[5]','W[6]','W[7]'),'mean'])
+PFAS_weights<- data.frame(PFAS_name, weights) %>% 
+               arrange( desc(weights))
+PFAS_weights
+
+```
